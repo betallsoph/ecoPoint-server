@@ -48,6 +48,22 @@ func derefString(p *string) string {
 	return *p
 }
 
+func toProtoVoucher(r rewarddb.Voucher) *rewardv1.Voucher {
+	v := &rewardv1.Voucher{
+		Id:        fromPgUUID(r.ID).String(),
+		Code:      r.Code,
+		Title:     r.Title,
+		PointCost: &commonv1.Decimal{Value: fromPgNumeric(r.PointCost).String()},
+		Stock:     r.Stock,
+		IsActive:  r.IsActive,
+		CreatedAt: timestamppb.New(r.CreatedAt.Time),
+	}
+	if r.Description != nil {
+		v.Description = *r.Description
+	}
+	return v
+}
+
 var statusDBToProto = map[rewarddb.RedemptionStatus]rewardv1.RedemptionStatus{
 	rewarddb.RedemptionStatusPending:   rewardv1.RedemptionStatus_REDEMPTION_STATUS_PENDING,
 	rewarddb.RedemptionStatusCompleted: rewardv1.RedemptionStatus_REDEMPTION_STATUS_COMPLETED,

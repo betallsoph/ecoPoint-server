@@ -40,6 +40,21 @@ func NewPointServer(pool *pgxpool.Pool, writer *kafka.Writer, log *slog.Logger) 
 	}
 }
 
+// GetBalance — đọc số dư ví (tạo wallet rỗng nếu chưa có).
+func (s *PointServer) GetBalance(ctx context.Context, req *pointv1.GetBalanceRequest) (*pointv1.GetBalanceResponse, error) {
+	userID, err := uuid.Parse(req.GetUserId())
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid user_id: %v", err)
+	}
+	wallet, err := s.q.UpsertWallet(ctx, toPgUUID(userID))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "upsert wallet: %v", err)
+	}
+	return &pointv1.GetBalanceResponse{
+		Balance: &commonv1.Decimal{Value: fromPgNumeric(wallet.Balance).String()},
+	}, nil
+}
+
 // AddPoints — cộng điểm trong một transaction ACID, có idempotency.
 // Sau khi commit thành công sẽ produce PointAdded vào topic `point-events`.
 func (s *PointServer) AddPoints(ctx context.Context, req *pointv1.AddPointsRequest) (*pointv1.AddPointsResponse, error) {

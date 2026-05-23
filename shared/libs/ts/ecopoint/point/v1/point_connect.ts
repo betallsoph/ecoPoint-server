@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddPointsRequest, AddPointsResponse, DeductPointsRequest, DeductPointsResponse } from "./point_pb.js";
+import { AddPointsRequest, AddPointsResponse, DeductPointsRequest, DeductPointsResponse, GetBalanceRequest, GetBalanceResponse } from "./point_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -28,6 +28,15 @@ export const PointService = {
       name: "DeductPoints",
       I: DeductPointsRequest,
       O: DeductPointsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc ecopoint.point.v1.PointService.GetBalance
+     */
+    getBalance: {
+      name: "GetBalance",
+      I: GetBalanceRequest,
+      O: GetBalanceResponse,
       kind: MethodKind.Unary,
     },
   }

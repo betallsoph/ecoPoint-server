@@ -50,6 +50,32 @@ func NewRewardServer(
 	}
 }
 
+// ListVouchers — trả danh sách voucher.
+func (s *RewardServer) ListVouchers(ctx context.Context, req *rewardv1.ListVouchersRequest) (*rewardv1.ListVouchersResponse, error) {
+	limit := req.GetLimit()
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+
+	var rows []rewarddb.Voucher
+	var err error
+	if req.GetOnlyActive() {
+		rows, err = s.q.ListActiveVouchers(ctx, limit)
+	} else {
+		rows, err = s.q.ListAllVouchers(ctx, limit)
+	}
+	if err != nil {
+		s.log.Error("list vouchers failed", "err", err.Error())
+		return nil, status.Errorf(codes.Internal, "list vouchers failed: %v", err)
+	}
+
+	out := make([]*rewardv1.Voucher, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, toProtoVoucher(r))
+	}
+	return &rewardv1.ListVouchersResponse{Vouchers: out}, nil
+}
+
 // RedeemVoucher — Orchestration của Saga đổi voucher.
 //
 // Trình tự:

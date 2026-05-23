@@ -8,6 +8,15 @@ import "google/protobuf/timestamp.proto";
 service PointService {
   rpc AddPoints(AddPointsRequest) returns (AddPointsResponse);
   rpc DeductPoints(DeductPointsRequest) returns (DeductPointsResponse);
+  rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse);
+}
+
+message GetBalanceRequest {
+  string user_id = 1;
+}
+
+message GetBalanceResponse {
+  ecopoint.common.v1.Decimal balance = 1;
 }
 
 // ---------------- Messages ----------------

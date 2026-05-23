@@ -2,60 +2,69 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
-	"github.com/joho/godotenv"
+	bookingv1 "github.com/ecopoint/ecopoint/shared/libs/go/ecopoint/booking/v1"
+
+	grpcserver "github.com/ecopoint/ecopoint/services/booking/internal/grpc"
 )
 
-// Booking-service gRPC bootstrap.
-// Proto BookingService chưa được khai báo trong shared/proto — service hiện
-// chỉ wire-up DB pool + gRPC server rỗng để dev tiếp.
 func main() {
-	_ = godotenv.Load() // .env (nếu có) — silent khi vắng
+	_ = godotenv.Load()
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	logger = logger.With("service", "booking")
+	slog.SetDefault(logger)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
 	pool, err := pgxpool.New(ctx, mustEnv("DATABASE_URL"))
 	if err != nil {
-		log.Fatalf("pgxpool: %v", err)
+		logger.Error("pgxpool init failed", "err", err.Error())
+		os.Exit(1)
 	}
 	defer pool.Close()
-	_ = pool // sẽ dùng cho bookingdb.New(pool) khi handler hoàn thiện
 
 	port := envOr("GRPC_PORT", "50052")
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
-		log.Fatalf("listen: %v", err)
+		logger.Error("listen failed", "err", err.Error(), "port", port)
+		os.Exit(1)
 	}
 
 	srv := grpc.NewServer()
+	bookingv1.RegisterBookingServiceServer(srv, grpcserver.NewBookingServer(pool, logger))
 	reflection.Register(srv)
 
 	go func() {
 		<-ctx.Done()
-		log.Println("[booking-service] shutting down")
+		logger.Info("shutdown signal received, draining grpc")
 		srv.GracefulStop()
 	}()
 
-	log.Printf("[booking-service] gRPC listening on :%s", port)
+	logger.Info("gRPC listening", "port", port)
 	if err := srv.Serve(lis); err != nil {
-		log.Fatalf("serve: %v", err)
+		logger.Error("grpc serve failed", "err", err.Error())
+		os.Exit(1)
 	}
+	logger.Info("booking-service stopped")
 }
 
 func mustEnv(k string) string {
 	v := os.Getenv(k)
 	if v == "" {
-		log.Fatalf("missing env %s", k)
+		slog.Error("missing env", "key", k)
+		os.Exit(1)
 	}
 	return v
 }

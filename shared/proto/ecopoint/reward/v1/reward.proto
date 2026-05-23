@@ -6,7 +6,29 @@ import "ecopoint/common/v1/common.proto";
 import "google/protobuf/timestamp.proto";
 
 service RewardService {
+  rpc ListVouchers(ListVouchersRequest) returns (ListVouchersResponse);
   rpc RedeemVoucher(RedeemVoucherRequest) returns (RedeemVoucherResponse);
+}
+
+message Voucher {
+  string id = 1;
+  string code = 2;
+  string title = 3;
+  string description = 4;
+  ecopoint.common.v1.Decimal point_cost = 5;
+  int32 stock = 6;
+  bool is_active = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message ListVouchersRequest {
+  // Bỏ trống = tất cả active. Set true/false để filter rõ.
+  bool only_active = 1;
+  int32 limit = 2;
+}
+
+message ListVouchersResponse {
+  repeated Voucher vouchers = 1;
 }
 
 enum RedemptionStatus {

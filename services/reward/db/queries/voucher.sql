@@ -1,6 +1,19 @@
 -- name: GetVoucherByID :one
 SELECT * FROM vouchers WHERE id = $1;
 
+-- name: ListActiveVouchers :many
+SELECT *
+FROM vouchers
+WHERE is_active = TRUE
+ORDER BY point_cost ASC
+LIMIT $1;
+
+-- name: ListAllVouchers :many
+SELECT *
+FROM vouchers
+ORDER BY created_at DESC
+LIMIT $1;
+
 -- name: ReserveVoucherStock :one
 -- Atomic decrement: chỉ trừ kho khi còn hàng & voucher đang active.
 -- 0 dòng cập nhật ⇒ sqlc trả pgx.ErrNoRows ⇒ saga abort sớm.

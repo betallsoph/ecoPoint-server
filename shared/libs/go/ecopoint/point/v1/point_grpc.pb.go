@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	PointService_AddPoints_FullMethodName    = "/ecopoint.point.v1.PointService/AddPoints"
 	PointService_DeductPoints_FullMethodName = "/ecopoint.point.v1.PointService/DeductPoints"
+	PointService_GetBalance_FullMethodName   = "/ecopoint.point.v1.PointService/GetBalance"
 )
 
 // PointServiceClient is the client API for PointService service.
@@ -29,6 +30,7 @@ const (
 type PointServiceClient interface {
 	AddPoints(ctx context.Context, in *AddPointsRequest, opts ...grpc.CallOption) (*AddPointsResponse, error)
 	DeductPoints(ctx context.Context, in *DeductPointsRequest, opts ...grpc.CallOption) (*DeductPointsResponse, error)
+	GetBalance(ctx context.Context, in *GetBalanceRequest, opts ...grpc.CallOption) (*GetBalanceResponse, error)
 }
 
 type pointServiceClient struct {
@@ -59,12 +61,23 @@ func (c *pointServiceClient) DeductPoints(ctx context.Context, in *DeductPointsR
 	return out, nil
 }
 
+func (c *pointServiceClient) GetBalance(ctx context.Context, in *GetBalanceRequest, opts ...grpc.CallOption) (*GetBalanceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetBalanceResponse)
+	err := c.cc.Invoke(ctx, PointService_GetBalance_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PointServiceServer is the server API for PointService service.
 // All implementations should embed UnimplementedPointServiceServer
 // for forward compatibility.
 type PointServiceServer interface {
 	AddPoints(context.Context, *AddPointsRequest) (*AddPointsResponse, error)
 	DeductPoints(context.Context, *DeductPointsRequest) (*DeductPointsResponse, error)
+	GetBalance(context.Context, *GetBalanceRequest) (*GetBalanceResponse, error)
 }
 
 // UnimplementedPointServiceServer should be embedded to have
@@ -79,6 +92,9 @@ func (UnimplementedPointServiceServer) AddPoints(context.Context, *AddPointsRequ
 }
 func (UnimplementedPointServiceServer) DeductPoints(context.Context, *DeductPointsRequest) (*DeductPointsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeductPoints not implemented")
+}
+func (UnimplementedPointServiceServer) GetBalance(context.Context, *GetBalanceRequest) (*GetBalanceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetBalance not implemented")
 }
 func (UnimplementedPointServiceServer) testEmbeddedByValue() {}
 
@@ -136,6 +152,24 @@ func _PointService_DeductPoints_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PointService_GetBalance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetBalanceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PointServiceServer).GetBalance(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PointService_GetBalance_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PointServiceServer).GetBalance(ctx, req.(*GetBalanceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PointService_ServiceDesc is the grpc.ServiceDesc for PointService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -150,6 +184,10 @@ var PointService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeductPoints",
 			Handler:    _PointService_DeductPoints_Handler,
+		},
+		{
+			MethodName: "GetBalance",
+			Handler:    _PointService_GetBalance_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -19,6 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	RewardService_ListVouchers_FullMethodName  = "/ecopoint.reward.v1.RewardService/ListVouchers"
 	RewardService_RedeemVoucher_FullMethodName = "/ecopoint.reward.v1.RewardService/RedeemVoucher"
 )
 
@@ -26,6 +27,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type RewardServiceClient interface {
+	ListVouchers(ctx context.Context, in *ListVouchersRequest, opts ...grpc.CallOption) (*ListVouchersResponse, error)
 	RedeemVoucher(ctx context.Context, in *RedeemVoucherRequest, opts ...grpc.CallOption) (*RedeemVoucherResponse, error)
 }
 
@@ -35,6 +37,16 @@ type rewardServiceClient struct {
 
 func NewRewardServiceClient(cc grpc.ClientConnInterface) RewardServiceClient {
 	return &rewardServiceClient{cc}
+}
+
+func (c *rewardServiceClient) ListVouchers(ctx context.Context, in *ListVouchersRequest, opts ...grpc.CallOption) (*ListVouchersResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListVouchersResponse)
+	err := c.cc.Invoke(ctx, RewardService_ListVouchers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *rewardServiceClient) RedeemVoucher(ctx context.Context, in *RedeemVoucherRequest, opts ...grpc.CallOption) (*RedeemVoucherResponse, error) {
@@ -51,6 +63,7 @@ func (c *rewardServiceClient) RedeemVoucher(ctx context.Context, in *RedeemVouch
 // All implementations should embed UnimplementedRewardServiceServer
 // for forward compatibility.
 type RewardServiceServer interface {
+	ListVouchers(context.Context, *ListVouchersRequest) (*ListVouchersResponse, error)
 	RedeemVoucher(context.Context, *RedeemVoucherRequest) (*RedeemVoucherResponse, error)
 }
 
@@ -61,6 +74,9 @@ type RewardServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedRewardServiceServer struct{}
 
+func (UnimplementedRewardServiceServer) ListVouchers(context.Context, *ListVouchersRequest) (*ListVouchersResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListVouchers not implemented")
+}
 func (UnimplementedRewardServiceServer) RedeemVoucher(context.Context, *RedeemVoucherRequest) (*RedeemVoucherResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RedeemVoucher not implemented")
 }
@@ -82,6 +98,24 @@ func RegisterRewardServiceServer(s grpc.ServiceRegistrar, srv RewardServiceServe
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&RewardService_ServiceDesc, srv)
+}
+
+func _RewardService_ListVouchers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListVouchersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RewardServiceServer).ListVouchers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RewardService_ListVouchers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RewardServiceServer).ListVouchers(ctx, req.(*ListVouchersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _RewardService_RedeemVoucher_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -109,6 +143,10 @@ var RewardService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "ecopoint.reward.v1.RewardService",
 	HandlerType: (*RewardServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ListVouchers",
+			Handler:    _RewardService_ListVouchers_Handler,
+		},
 		{
 			MethodName: "RedeemVoucher",
 			Handler:    _RewardService_RedeemVoucher_Handler,

@@ -39,6 +39,167 @@ proto3.util.setEnumType(RedemptionStatus, "ecopoint.reward.v1.RedemptionStatus",
 ]);
 
 /**
+ * @generated from message ecopoint.reward.v1.Voucher
+ */
+export class Voucher extends Message<Voucher> {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * @generated from field: string code = 2;
+   */
+  code = "";
+
+  /**
+   * @generated from field: string title = 3;
+   */
+  title = "";
+
+  /**
+   * @generated from field: string description = 4;
+   */
+  description = "";
+
+  /**
+   * @generated from field: ecopoint.common.v1.Decimal point_cost = 5;
+   */
+  pointCost?: Decimal;
+
+  /**
+   * @generated from field: int32 stock = 6;
+   */
+  stock = 0;
+
+  /**
+   * @generated from field: bool is_active = 7;
+   */
+  isActive = false;
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 8;
+   */
+  createdAt?: Timestamp;
+
+  constructor(data?: PartialMessage<Voucher>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "ecopoint.reward.v1.Voucher";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "title", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "point_cost", kind: "message", T: Decimal },
+    { no: 6, name: "stock", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 7, name: "is_active", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 8, name: "created_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Voucher {
+    return new Voucher().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Voucher {
+    return new Voucher().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Voucher {
+    return new Voucher().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Voucher | PlainMessage<Voucher> | undefined, b: Voucher | PlainMessage<Voucher> | undefined): boolean {
+    return proto3.util.equals(Voucher, a, b);
+  }
+}
+
+/**
+ * @generated from message ecopoint.reward.v1.ListVouchersRequest
+ */
+export class ListVouchersRequest extends Message<ListVouchersRequest> {
+  /**
+   * Bỏ trống = tất cả active. Set true/false để filter rõ.
+   *
+   * @generated from field: bool only_active = 1;
+   */
+  onlyActive = false;
+
+  /**
+   * @generated from field: int32 limit = 2;
+   */
+  limit = 0;
+
+  constructor(data?: PartialMessage<ListVouchersRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "ecopoint.reward.v1.ListVouchersRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "only_active", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "limit", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListVouchersRequest {
+    return new ListVouchersRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListVouchersRequest {
+    return new ListVouchersRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListVouchersRequest {
+    return new ListVouchersRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListVouchersRequest | PlainMessage<ListVouchersRequest> | undefined, b: ListVouchersRequest | PlainMessage<ListVouchersRequest> | undefined): boolean {
+    return proto3.util.equals(ListVouchersRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message ecopoint.reward.v1.ListVouchersResponse
+ */
+export class ListVouchersResponse extends Message<ListVouchersResponse> {
+  /**
+   * @generated from field: repeated ecopoint.reward.v1.Voucher vouchers = 1;
+   */
+  vouchers: Voucher[] = [];
+
+  constructor(data?: PartialMessage<ListVouchersResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "ecopoint.reward.v1.ListVouchersResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "vouchers", kind: "message", T: Voucher, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListVouchersResponse {
+    return new ListVouchersResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListVouchersResponse {
+    return new ListVouchersResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListVouchersResponse {
+    return new ListVouchersResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListVouchersResponse | PlainMessage<ListVouchersResponse> | undefined, b: ListVouchersResponse | PlainMessage<ListVouchersResponse> | undefined): boolean {
+    return proto3.util.equals(ListVouchersResponse, a, b);
+  }
+}
+
+/**
  * @generated from message ecopoint.reward.v1.Redemption
  */
 export class Redemption extends Message<Redemption> {

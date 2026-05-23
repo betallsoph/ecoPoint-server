@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { RedeemVoucherRequest, RedeemVoucherResponse } from "./reward_pb.js";
+import { ListVouchersRequest, ListVouchersResponse, RedeemVoucherRequest, RedeemVoucherResponse } from "./reward_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -12,6 +12,15 @@ import { MethodKind } from "@bufbuild/protobuf";
 export const RewardService = {
   typeName: "ecopoint.reward.v1.RewardService",
   methods: {
+    /**
+     * @generated from rpc ecopoint.reward.v1.RewardService.ListVouchers
+     */
+    listVouchers: {
+      name: "ListVouchers",
+      I: ListVouchersRequest,
+      O: ListVouchersResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * @generated from rpc ecopoint.reward.v1.RewardService.RedeemVoucher
      */

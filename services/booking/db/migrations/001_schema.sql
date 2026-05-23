@@ -15,6 +15,13 @@ CREATE TYPE booking_status AS ENUM (
     'cancelled'
 );
 
+CREATE TYPE material_type AS ENUM (
+    'paper',
+    'plastic',
+    'metal',
+    'mixed'
+);
+
 CREATE TABLE bookings (
     id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     customer_id    UUID            NOT NULL,
@@ -26,6 +33,7 @@ CREATE TABLE bookings (
     location       GEOMETRY(Point, 4326) NOT NULL,
 
     estimated_kg   NUMERIC(10, 2),
+    material_type  material_type   NOT NULL DEFAULT 'mixed',
     note           TEXT,
     scheduled_at   TIMESTAMPTZ,
 
@@ -36,5 +44,5 @@ CREATE TABLE bookings (
 -- GIST index cho truy vấn không gian (KNN, ST_DWithin, …)
 CREATE INDEX bookings_location_gix ON bookings USING GIST (location);
 
--- B-tree phụ cho filter trạng thái phổ biến
 CREATE INDEX bookings_status_idx ON bookings (status);
+CREATE INDEX bookings_customer_idx ON bookings (customer_id, created_at DESC);

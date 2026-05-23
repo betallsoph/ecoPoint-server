@@ -13,12 +13,12 @@ import (
 
 const createBooking = `-- name: CreateBooking :one
 INSERT INTO bookings (
-    customer_id, address, location, estimated_kg, note, scheduled_at
+    customer_id, address, location, estimated_kg, material_type, note, scheduled_at
 ) VALUES (
     $1,
     $2,
     ST_SetSRID(ST_MakePoint($3, $4), 4326),
-    $5, $6, $7
+    $5, $6, $7, $8
 )
 RETURNING
     id,
@@ -29,6 +29,7 @@ RETURNING
     ST_X(location)::float8 AS longitude,
     ST_Y(location)::float8 AS latitude,
     estimated_kg,
+    material_type,
     note,
     scheduled_at,
     created_at,
@@ -41,26 +42,27 @@ type CreateBookingParams struct {
 	StMakepoint   interface{}        `json:"st_makepoint"`
 	StMakepoint_2 interface{}        `json:"st_makepoint_2"`
 	EstimatedKg   pgtype.Numeric     `json:"estimated_kg"`
+	MaterialType  MaterialType       `json:"material_type"`
 	Note          *string            `json:"note"`
 	ScheduledAt   pgtype.Timestamptz `json:"scheduled_at"`
 }
 
 type CreateBookingRow struct {
-	ID          pgtype.UUID        `json:"id"`
-	CustomerID  pgtype.UUID        `json:"customer_id"`
-	CollectorID pgtype.UUID        `json:"collector_id"`
-	Status      BookingStatus      `json:"status"`
-	Address     string             `json:"address"`
-	Longitude   float64            `json:"longitude"`
-	Latitude    float64            `json:"latitude"`
-	EstimatedKg pgtype.Numeric     `json:"estimated_kg"`
-	Note        *string            `json:"note"`
-	ScheduledAt pgtype.Timestamptz `json:"scheduled_at"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+	ID           pgtype.UUID        `json:"id"`
+	CustomerID   pgtype.UUID        `json:"customer_id"`
+	CollectorID  pgtype.UUID        `json:"collector_id"`
+	Status       BookingStatus      `json:"status"`
+	Address      string             `json:"address"`
+	Longitude    float64            `json:"longitude"`
+	Latitude     float64            `json:"latitude"`
+	EstimatedKg  pgtype.Numeric     `json:"estimated_kg"`
+	MaterialType MaterialType       `json:"material_type"`
+	Note         *string            `json:"note"`
+	ScheduledAt  pgtype.Timestamptz `json:"scheduled_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
-// Truyền vào: customer_id, address, longitude, latitude, estimated_kg, note, scheduled_at.
 func (q *Queries) CreateBooking(ctx context.Context, arg CreateBookingParams) (CreateBookingRow, error) {
 	row := q.db.QueryRow(ctx, createBooking,
 		arg.CustomerID,
@@ -68,6 +70,7 @@ func (q *Queries) CreateBooking(ctx context.Context, arg CreateBookingParams) (C
 		arg.StMakepoint,
 		arg.StMakepoint_2,
 		arg.EstimatedKg,
+		arg.MaterialType,
 		arg.Note,
 		arg.ScheduledAt,
 	)
@@ -81,6 +84,7 @@ func (q *Queries) CreateBooking(ctx context.Context, arg CreateBookingParams) (C
 		&i.Longitude,
 		&i.Latitude,
 		&i.EstimatedKg,
+		&i.MaterialType,
 		&i.Note,
 		&i.ScheduledAt,
 		&i.CreatedAt,
@@ -103,38 +107,42 @@ SELECT
         ST_SetSRID(ST_MakePoint($1, $2), 4326)
     )::float8 AS distance_m,
     estimated_kg,
+    material_type,
+    note,
     scheduled_at,
-    created_at
+    created_at,
+    updated_at
 FROM bookings
 WHERE status = 'pending'
 ORDER BY location <-> ST_SetSRID(ST_MakePoint($1, $2), 4326)
-LIMIT 5
+LIMIT $3
 `
 
 type FindNearestBookingsParams struct {
 	StMakepoint   interface{} `json:"st_makepoint"`
 	StMakepoint_2 interface{} `json:"st_makepoint_2"`
+	Limit         int32       `json:"limit"`
 }
 
 type FindNearestBookingsRow struct {
-	ID          pgtype.UUID        `json:"id"`
-	CustomerID  pgtype.UUID        `json:"customer_id"`
-	CollectorID pgtype.UUID        `json:"collector_id"`
-	Status      BookingStatus      `json:"status"`
-	Address     string             `json:"address"`
-	Longitude   float64            `json:"longitude"`
-	Latitude    float64            `json:"latitude"`
-	DistanceM   float64            `json:"distance_m"`
-	EstimatedKg pgtype.Numeric     `json:"estimated_kg"`
-	ScheduledAt pgtype.Timestamptz `json:"scheduled_at"`
-	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	ID           pgtype.UUID        `json:"id"`
+	CustomerID   pgtype.UUID        `json:"customer_id"`
+	CollectorID  pgtype.UUID        `json:"collector_id"`
+	Status       BookingStatus      `json:"status"`
+	Address      string             `json:"address"`
+	Longitude    float64            `json:"longitude"`
+	Latitude     float64            `json:"latitude"`
+	DistanceM    float64            `json:"distance_m"`
+	EstimatedKg  pgtype.Numeric     `json:"estimated_kg"`
+	MaterialType MaterialType       `json:"material_type"`
+	Note         *string            `json:"note"`
+	ScheduledAt  pgtype.Timestamptz `json:"scheduled_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
-// Tìm 5 booking 'pending' gần nhất với toạ độ ($1 = longitude, $2 = latitude).
-// Dùng toán tử KNN `<->` để tận dụng GIST index, sau đó tính khoảng cách thực tế
-// bằng ST_DistanceSphere (đơn vị: mét, độ chính xác cao trên bề mặt cầu).
 func (q *Queries) FindNearestBookings(ctx context.Context, arg FindNearestBookingsParams) ([]FindNearestBookingsRow, error) {
-	rows, err := q.db.Query(ctx, findNearestBookings, arg.StMakepoint, arg.StMakepoint_2)
+	rows, err := q.db.Query(ctx, findNearestBookings, arg.StMakepoint, arg.StMakepoint_2, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -152,8 +160,233 @@ func (q *Queries) FindNearestBookings(ctx context.Context, arg FindNearestBookin
 			&i.Latitude,
 			&i.DistanceM,
 			&i.EstimatedKg,
+			&i.MaterialType,
+			&i.Note,
 			&i.ScheduledAt,
 			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listBookings = `-- name: ListBookings :many
+SELECT
+    id,
+    customer_id,
+    collector_id,
+    status,
+    address,
+    ST_X(location)::float8 AS longitude,
+    ST_Y(location)::float8 AS latitude,
+    estimated_kg,
+    material_type,
+    note,
+    scheduled_at,
+    created_at,
+    updated_at
+FROM bookings
+ORDER BY created_at DESC
+LIMIT $1
+`
+
+type ListBookingsRow struct {
+	ID           pgtype.UUID        `json:"id"`
+	CustomerID   pgtype.UUID        `json:"customer_id"`
+	CollectorID  pgtype.UUID        `json:"collector_id"`
+	Status       BookingStatus      `json:"status"`
+	Address      string             `json:"address"`
+	Longitude    float64            `json:"longitude"`
+	Latitude     float64            `json:"latitude"`
+	EstimatedKg  pgtype.Numeric     `json:"estimated_kg"`
+	MaterialType MaterialType       `json:"material_type"`
+	Note         *string            `json:"note"`
+	ScheduledAt  pgtype.Timestamptz `json:"scheduled_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) ListBookings(ctx context.Context, limit int32) ([]ListBookingsRow, error) {
+	rows, err := q.db.Query(ctx, listBookings, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListBookingsRow{}
+	for rows.Next() {
+		var i ListBookingsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CustomerID,
+			&i.CollectorID,
+			&i.Status,
+			&i.Address,
+			&i.Longitude,
+			&i.Latitude,
+			&i.EstimatedKg,
+			&i.MaterialType,
+			&i.Note,
+			&i.ScheduledAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listBookingsByStatus = `-- name: ListBookingsByStatus :many
+SELECT
+    id,
+    customer_id,
+    collector_id,
+    status,
+    address,
+    ST_X(location)::float8 AS longitude,
+    ST_Y(location)::float8 AS latitude,
+    estimated_kg,
+    material_type,
+    note,
+    scheduled_at,
+    created_at,
+    updated_at
+FROM bookings
+WHERE status = $1
+ORDER BY created_at DESC
+LIMIT $2
+`
+
+type ListBookingsByStatusParams struct {
+	Status BookingStatus `json:"status"`
+	Limit  int32         `json:"limit"`
+}
+
+type ListBookingsByStatusRow struct {
+	ID           pgtype.UUID        `json:"id"`
+	CustomerID   pgtype.UUID        `json:"customer_id"`
+	CollectorID  pgtype.UUID        `json:"collector_id"`
+	Status       BookingStatus      `json:"status"`
+	Address      string             `json:"address"`
+	Longitude    float64            `json:"longitude"`
+	Latitude     float64            `json:"latitude"`
+	EstimatedKg  pgtype.Numeric     `json:"estimated_kg"`
+	MaterialType MaterialType       `json:"material_type"`
+	Note         *string            `json:"note"`
+	ScheduledAt  pgtype.Timestamptz `json:"scheduled_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) ListBookingsByStatus(ctx context.Context, arg ListBookingsByStatusParams) ([]ListBookingsByStatusRow, error) {
+	rows, err := q.db.Query(ctx, listBookingsByStatus, arg.Status, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListBookingsByStatusRow{}
+	for rows.Next() {
+		var i ListBookingsByStatusRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CustomerID,
+			&i.CollectorID,
+			&i.Status,
+			&i.Address,
+			&i.Longitude,
+			&i.Latitude,
+			&i.EstimatedKg,
+			&i.MaterialType,
+			&i.Note,
+			&i.ScheduledAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMyBookings = `-- name: ListMyBookings :many
+SELECT
+    id,
+    customer_id,
+    collector_id,
+    status,
+    address,
+    ST_X(location)::float8 AS longitude,
+    ST_Y(location)::float8 AS latitude,
+    estimated_kg,
+    material_type,
+    note,
+    scheduled_at,
+    created_at,
+    updated_at
+FROM bookings
+WHERE customer_id = $1
+ORDER BY created_at DESC
+LIMIT $2
+`
+
+type ListMyBookingsParams struct {
+	CustomerID pgtype.UUID `json:"customer_id"`
+	Limit      int32       `json:"limit"`
+}
+
+type ListMyBookingsRow struct {
+	ID           pgtype.UUID        `json:"id"`
+	CustomerID   pgtype.UUID        `json:"customer_id"`
+	CollectorID  pgtype.UUID        `json:"collector_id"`
+	Status       BookingStatus      `json:"status"`
+	Address      string             `json:"address"`
+	Longitude    float64            `json:"longitude"`
+	Latitude     float64            `json:"latitude"`
+	EstimatedKg  pgtype.Numeric     `json:"estimated_kg"`
+	MaterialType MaterialType       `json:"material_type"`
+	Note         *string            `json:"note"`
+	ScheduledAt  pgtype.Timestamptz `json:"scheduled_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+func (q *Queries) ListMyBookings(ctx context.Context, arg ListMyBookingsParams) ([]ListMyBookingsRow, error) {
+	rows, err := q.db.Query(ctx, listMyBookings, arg.CustomerID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMyBookingsRow{}
+	for rows.Next() {
+		var i ListMyBookingsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CustomerID,
+			&i.CollectorID,
+			&i.Status,
+			&i.Address,
+			&i.Longitude,
+			&i.Latitude,
+			&i.EstimatedKg,
+			&i.MaterialType,
+			&i.Note,
+			&i.ScheduledAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

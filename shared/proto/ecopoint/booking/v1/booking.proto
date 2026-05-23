@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package ecopoint.booking.v1;
+
+import "ecopoint/common/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+service BookingService {
+  rpc CreateBooking(CreateBookingRequest) returns (CreateBookingResponse);
+  rpc ListMyBookings(ListMyBookingsRequest) returns (ListBookingsResponse);
+  rpc ListPendingNearby(ListPendingNearbyRequest) returns (ListBookingsResponse);
+  rpc ListBookings(ListBookingsRequest) returns (ListBookingsResponse);
+}
+
+enum BookingStatus {
+  BOOKING_STATUS_UNSPECIFIED = 0;
+  BOOKING_STATUS_PENDING = 1;
+  BOOKING_STATUS_ACCEPTED = 2;
+  BOOKING_STATUS_COLLECTING = 3;
+  BOOKING_STATUS_COMPLETED = 4;
+  BOOKING_STATUS_CANCELLED = 5;
+}
+
+enum MaterialType {
+  MATERIAL_TYPE_UNSPECIFIED = 0;
+  MATERIAL_TYPE_PAPER = 1;
+  MATERIAL_TYPE_PLASTIC = 2;
+  MATERIAL_TYPE_METAL = 3;
+  MATERIAL_TYPE_MIXED = 4;
+}
+
+message Booking {
+  string id = 1;
+  string customer_id = 2;
+  string collector_id = 3;
+  BookingStatus status = 4;
+  string address = 5;
+  double longitude = 6;
+  double latitude = 7;
+  ecopoint.common.v1.Decimal estimated_kg = 8;
+  string note = 9;
+  MaterialType material_type = 10;
+  google.protobuf.Timestamp scheduled_at = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  // Chỉ set ở ListPendingNearby
+  double distance_m = 14;
+}
+
+message CreateBookingRequest {
+  string customer_id = 1;
+  string address = 2;
+  double longitude = 3;
+  double latitude = 4;
+  ecopoint.common.v1.Decimal estimated_kg = 5;
+  string note = 6;
+  MaterialType material_type = 7;
+  // Optional — bỏ trống = đặt ngay.
+  google.protobuf.Timestamp scheduled_at = 8;
+}
+
+message CreateBookingResponse {
+  Booking booking = 1;
+}
+
+message ListMyBookingsRequest {
+  string customer_id = 1;
+  int32 limit = 2;
+}
+
+message ListBookingsRequest {
+  BookingStatus status = 1; // BOOKING_STATUS_UNSPECIFIED = không filter
+  int32 limit = 2;
+}
+
+message ListPendingNearbyRequest {
+  double longitude = 1;
+  double latitude = 2;
+  // Mặc định 5 nếu = 0
+  int32 limit = 3;
+}
+
+message ListBookingsResponse {
+  repeated Booking bookings = 1;
+}

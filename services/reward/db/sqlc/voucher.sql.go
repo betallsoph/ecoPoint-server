@@ -158,6 +158,81 @@ func (q *Queries) InsertPendingRedemption(ctx context.Context, arg InsertPending
 	return i, err
 }
 
+const listActiveVouchers = `-- name: ListActiveVouchers :many
+SELECT id, code, title, description, point_cost, stock, is_active, created_at, updated_at
+FROM vouchers
+WHERE is_active = TRUE
+ORDER BY point_cost ASC
+LIMIT $1
+`
+
+func (q *Queries) ListActiveVouchers(ctx context.Context, limit int32) ([]Voucher, error) {
+	rows, err := q.db.Query(ctx, listActiveVouchers, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Voucher{}
+	for rows.Next() {
+		var i Voucher
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Title,
+			&i.Description,
+			&i.PointCost,
+			&i.Stock,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAllVouchers = `-- name: ListAllVouchers :many
+SELECT id, code, title, description, point_cost, stock, is_active, created_at, updated_at
+FROM vouchers
+ORDER BY created_at DESC
+LIMIT $1
+`
+
+func (q *Queries) ListAllVouchers(ctx context.Context, limit int32) ([]Voucher, error) {
+	rows, err := q.db.Query(ctx, listAllVouchers, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Voucher{}
+	for rows.Next() {
+		var i Voucher
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Title,
+			&i.Description,
+			&i.PointCost,
+			&i.Stock,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const releaseVoucherStock = `-- name: ReleaseVoucherStock :one
 UPDATE vouchers
 SET stock = stock + 1,

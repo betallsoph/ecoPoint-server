@@ -93,6 +93,80 @@ proto3.util.setEnumType(PointDeductReason, "ecopoint.point.v1.PointDeductReason"
 ]);
 
 /**
+ * @generated from message ecopoint.point.v1.GetBalanceRequest
+ */
+export class GetBalanceRequest extends Message<GetBalanceRequest> {
+  /**
+   * @generated from field: string user_id = 1;
+   */
+  userId = "";
+
+  constructor(data?: PartialMessage<GetBalanceRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "ecopoint.point.v1.GetBalanceRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBalanceRequest {
+    return new GetBalanceRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetBalanceRequest {
+    return new GetBalanceRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetBalanceRequest {
+    return new GetBalanceRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetBalanceRequest | PlainMessage<GetBalanceRequest> | undefined, b: GetBalanceRequest | PlainMessage<GetBalanceRequest> | undefined): boolean {
+    return proto3.util.equals(GetBalanceRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message ecopoint.point.v1.GetBalanceResponse
+ */
+export class GetBalanceResponse extends Message<GetBalanceResponse> {
+  /**
+   * @generated from field: ecopoint.common.v1.Decimal balance = 1;
+   */
+  balance?: Decimal;
+
+  constructor(data?: PartialMessage<GetBalanceResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "ecopoint.point.v1.GetBalanceResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "balance", kind: "message", T: Decimal },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBalanceResponse {
+    return new GetBalanceResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetBalanceResponse {
+    return new GetBalanceResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetBalanceResponse {
+    return new GetBalanceResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetBalanceResponse | PlainMessage<GetBalanceResponse> | undefined, b: GetBalanceResponse | PlainMessage<GetBalanceResponse> | undefined): boolean {
+    return proto3.util.equals(GetBalanceResponse, a, b);
+  }
+}
+
+/**
  * @generated from message ecopoint.point.v1.PointTransaction
  */
 export class PointTransaction extends Message<PointTransaction> {

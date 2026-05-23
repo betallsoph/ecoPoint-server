@@ -1,12 +1,11 @@
 -- name: CreateBooking :one
--- Truyền vào: customer_id, address, longitude, latitude, estimated_kg, note, scheduled_at.
 INSERT INTO bookings (
-    customer_id, address, location, estimated_kg, note, scheduled_at
+    customer_id, address, location, estimated_kg, material_type, note, scheduled_at
 ) VALUES (
     $1,
     $2,
     ST_SetSRID(ST_MakePoint($3, $4), 4326),
-    $5, $6, $7
+    $5, $6, $7, $8
 )
 RETURNING
     id,
@@ -17,15 +16,72 @@ RETURNING
     ST_X(location)::float8 AS longitude,
     ST_Y(location)::float8 AS latitude,
     estimated_kg,
+    material_type,
     note,
     scheduled_at,
     created_at,
     updated_at;
 
+-- name: ListMyBookings :many
+SELECT
+    id,
+    customer_id,
+    collector_id,
+    status,
+    address,
+    ST_X(location)::float8 AS longitude,
+    ST_Y(location)::float8 AS latitude,
+    estimated_kg,
+    material_type,
+    note,
+    scheduled_at,
+    created_at,
+    updated_at
+FROM bookings
+WHERE customer_id = $1
+ORDER BY created_at DESC
+LIMIT $2;
+
+-- name: ListBookings :many
+SELECT
+    id,
+    customer_id,
+    collector_id,
+    status,
+    address,
+    ST_X(location)::float8 AS longitude,
+    ST_Y(location)::float8 AS latitude,
+    estimated_kg,
+    material_type,
+    note,
+    scheduled_at,
+    created_at,
+    updated_at
+FROM bookings
+ORDER BY created_at DESC
+LIMIT $1;
+
+-- name: ListBookingsByStatus :many
+SELECT
+    id,
+    customer_id,
+    collector_id,
+    status,
+    address,
+    ST_X(location)::float8 AS longitude,
+    ST_Y(location)::float8 AS latitude,
+    estimated_kg,
+    material_type,
+    note,
+    scheduled_at,
+    created_at,
+    updated_at
+FROM bookings
+WHERE status = $1
+ORDER BY created_at DESC
+LIMIT $2;
+
 -- name: FindNearestBookings :many
--- Tìm 5 booking 'pending' gần nhất với toạ độ ($1 = longitude, $2 = latitude).
--- Dùng toán tử KNN `<->` để tận dụng GIST index, sau đó tính khoảng cách thực tế
--- bằng ST_DistanceSphere (đơn vị: mét, độ chính xác cao trên bề mặt cầu).
 SELECT
     id,
     customer_id,
@@ -39,9 +95,12 @@ SELECT
         ST_SetSRID(ST_MakePoint($1, $2), 4326)
     )::float8 AS distance_m,
     estimated_kg,
+    material_type,
+    note,
     scheduled_at,
-    created_at
+    created_at,
+    updated_at
 FROM bookings
 WHERE status = 'pending'
 ORDER BY location <-> ST_SetSRID(ST_MakePoint($1, $2), 4326)
-LIMIT 5;
+LIMIT $3;
