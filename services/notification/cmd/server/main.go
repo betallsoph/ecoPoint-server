@@ -63,13 +63,20 @@ func main() {
 	for {
 		msg, err := reader.ReadMessage(ctx)
 		if err != nil {
-			// Đây là các lỗi báo hiệu reader đã đóng / context hủy → thoát loop êm.
-			if errors.Is(err, context.Canceled) ||
-				errors.Is(err, io.EOF) ||
-				errors.Is(err, io.ErrClosedPipe) {
+			// Chỉ thoát khi context hủy thật sự (graceful shutdown).
+			if errors.Is(err, context.Canceled) {
 				break
 			}
-			logger.Error("kafka read failed", "err", err.Error())
+			// EOF/ErrClosedPipe xuất hiện khi topic chưa tồn tại (chưa ai publish).
+			// Đây là hoàn cảnh bình thường lúc bootstrap — retry quiet, không exit.
+			if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrClosedPipe) {
+				logger.Error("kafka read failed", "err", err.Error())
+			}
+			select {
+			case <-ctx.Done():
+				// rơi ra ngoài → vòng lặp tiếp, ReadMessage sẽ trả ctx.Canceled → break.
+			case <-time.After(time.Second):
+			}
 			continue
 		}
 
