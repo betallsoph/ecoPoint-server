@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package ecopoint.point.v1;
+
+import "ecopoint/common/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+service PointService {
+  rpc AddPoints(AddPointsRequest) returns (AddPointsResponse);
+  rpc DeductPoints(DeductPointsRequest) returns (DeductPointsResponse);
+}
+
+// ---------------- Messages ----------------
+
+enum PointSource {
+  POINT_SOURCE_UNSPECIFIED = 0;
+  POINT_SOURCE_BOOKING = 1; // Hoàn thành đơn thu gom
+  POINT_SOURCE_PROMOTION = 2; // Khuyến mãi / quà tặng
+  POINT_SOURCE_REFUND = 3; // Hoàn điểm
+  POINT_SOURCE_ADJUSTMENT = 4; // Điều chỉnh từ admin
+}
+
+enum PointDeductReason {
+  POINT_DEDUCT_REASON_UNSPECIFIED = 0;
+  POINT_DEDUCT_REASON_REDEEM = 1; // Đổi phần thưởng
+  POINT_DEDUCT_REASON_EXPIRED = 2;
+  POINT_DEDUCT_REASON_PENALTY = 3;
+  POINT_DEDUCT_REASON_ADJUSTMENT = 4;
+}
+
+message PointTransaction {
+  string id = 1;
+  string user_id = 2;
+  ecopoint.common.v1.Decimal amount = 3; // luôn dương
+  ecopoint.common.v1.Decimal balance_after = 4;
+  string reference_id = 5; // booking_id / reward_id
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// ---- AddPoints ----
+message AddPointsRequest {
+  string user_id = 1;
+  ecopoint.common.v1.Decimal amount = 2;
+  PointSource source = 3;
+  string reference_id = 4;
+  // Idempotency key để chống cộng điểm trùng khi retry.
+  string idempotency_key = 5;
+}
+
+message AddPointsResponse {
+  PointTransaction transaction = 1;
+  ecopoint.common.v1.Decimal new_balance = 2;
+}
+
+// ---- DeductPoints ----
+message DeductPointsRequest {
+  string user_id = 1;
+  ecopoint.common.v1.Decimal amount = 2;
+  PointDeductReason reason = 3;
+  string reference_id = 4;
+  string idempotency_key = 5;
+}
+
+message DeductPointsResponse {
+  PointTransaction transaction = 1;
+  ecopoint.common.v1.Decimal new_balance = 2;
+}

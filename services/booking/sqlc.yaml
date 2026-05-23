@@ -1,0 +1,23 @@
+version: "2"
+sql:
+  - engine: postgresql
+    schema: db/migrations
+    queries: db/queries
+    gen:
+      go:
+        package: bookingdb
+        out: db/sqlc
+        sql_package: pgx/v5
+        emit_json_tags: true
+        emit_pointers_for_null_types: true
+        emit_empty_slices: true
+        emit_exact_table_names: false
+        emit_prepared_queries: false
+        overrides:
+          # PostGIS geometry chỉ xuất hiện ở INSERT/UPDATE side; mọi SELECT đều
+          # bóc ra qua ST_X / ST_Y nên sqlc không bao giờ thấy cột geometry ở RETURNING.
+          # Vẫn khai báo override để an toàn nếu thêm query khác.
+          - db_type: "geometry"
+            go_type:
+              import: "github.com/jackc/pgx/v5/pgtype"
+              type: "Text"

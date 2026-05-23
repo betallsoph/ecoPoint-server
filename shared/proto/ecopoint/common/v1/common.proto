@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package ecopoint.common.v1;
+
+// Decimal: kiểu số chính xác cho dữ liệu tài chính / điểm thưởng.
+// Dùng chuỗi để tránh mất chính xác như float/double.
+// Format: "123.45" (tối đa 18 chữ số nguyên + 9 chữ số thập phân).
+// Map sang shopspring/decimal (Go) hoặc decimal.js (TS).
+message Decimal {
+  string value = 1;
+}
+
+// Trạng thái chung trả về từ các mutation.
+message MutationResult {
+  bool success = 1;
+  string message = 2;
+}

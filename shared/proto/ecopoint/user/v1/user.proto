@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package ecopoint.user.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service UserService {
+  rpc GetUserInfo(GetUserInfoRequest) returns (GetUserInfoResponse);
+  rpc VerifyToken(VerifyTokenRequest) returns (VerifyTokenResponse);
+}
+
+// ---------------- Messages ----------------
+
+enum UserRole {
+  USER_ROLE_UNSPECIFIED = 0;
+  USER_ROLE_CUSTOMER = 1; // Người dân yêu cầu thu gom
+  USER_ROLE_COLLECTOR = 2; // Người thu gom ve chai
+  USER_ROLE_ADMIN = 3;
+}
+
+message User {
+  string id = 1;
+  string phone = 2;
+  string email = 3;
+  string full_name = 4;
+  string avatar_url = 5;
+  UserRole role = 6;
+  bool is_active = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message GetUserInfoRequest {
+  string user_id = 1;
+}
+
+message GetUserInfoResponse {
+  User user = 1;
+}
+
+message VerifyTokenRequest {
+  string access_token = 1;
+}
+
+message VerifyTokenResponse {
+  bool valid = 1;
+  string user_id = 2;
+  UserRole role = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
