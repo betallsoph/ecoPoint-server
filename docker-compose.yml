@@ -78,9 +78,10 @@ services:
 
   # ===================== Apache Kafka (KRaft, no Zookeeper) =====================
   kafka:
-    # Bitnami đổi policy 8/2025 — `bitnami/kafka:latest` bị xoá; free legacy
-    # images chuyển sang namespace `bitnamilegacy/`. Env `KAFKA_CFG_*` giữ nguyên.
-    image: bitnamilegacy/kafka:latest
+    # Pin Kafka 3.9 — Kafka 4.0 bật KIP-848 (consumer protocol mới) mặc định,
+    # kafka-go v0.4.x chưa hỗ trợ → consumer group join fail với EOF.
+    # Bitnami `latest` = 4.0; legacy 3.9 vẫn dùng `KAFKA_CFG_*` env tương thích.
+    image: bitnamilegacy/kafka:3.9
     container_name: ecopoint-kafka
     restart: unless-stopped
     ports:
@@ -90,12 +91,14 @@ services:
       KAFKA_CFG_NODE_ID: "0"
       KAFKA_CFG_PROCESS_ROLES: "controller,broker"
       KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: "0@kafka:9093"
-      # ---- Listeners (dual: EXTERNAL cho host, INTERNAL cho docker net) ----
+      # ---- Listeners: dual, INTER_BROKER = EXTERNAL → group coordinator
+      # quảng bá EXTERNAL listener (localhost:9092) → host kết nối được.
       KAFKA_CFG_LISTENERS: "INTERNAL://:9094,EXTERNAL://:9092,CONTROLLER://:9093"
       KAFKA_CFG_ADVERTISED_LISTENERS: "INTERNAL://kafka:9094,EXTERNAL://localhost:9092"
       KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT"
-      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: "INTERNAL"
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: "EXTERNAL"
       KAFKA_CFG_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_CFG_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
       # ---- Topic defaults (1 broker dev) ----
       KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_CFG_NUM_PARTITIONS: "3"
