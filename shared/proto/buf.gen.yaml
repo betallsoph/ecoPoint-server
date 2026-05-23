@@ -1,5 +1,6 @@
 version: v2
-clean: true
+# clean: false — không xoá ../libs/ts vì có package.json + node_modules của @ecopoint/proto.
+clean: false
 
 managed:
   enabled: true
