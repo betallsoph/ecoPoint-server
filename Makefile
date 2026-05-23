@@ -48,7 +48,10 @@ migrate:
 		docker exec -i ecopoint-postgres psql -U $${POSTGRES_USER:-ecopoint} -d db_$$db \
 			< services/$$db/db/migrations/001_schema.sql >/dev/null; \
 	done
-	@cd services/user && npm run db:push --silent
+	@echo "→ migrating db_user (drizzle generate → docker exec)"
+	@cd services/user && npm run db:generate --silent >/dev/null
+	@docker exec -i ecopoint-postgres psql -U $${POSTGRES_USER:-ecopoint} -d db_user \
+		< services/user/drizzle/0000_*.sql >/dev/null
 	@echo "✅ Migrations applied"
 
 # ============================================================
