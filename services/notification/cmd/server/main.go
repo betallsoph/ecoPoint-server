@@ -3,16 +3,18 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"log/slog"
 	"os"
 	"os/signal"
-	"strconv"
+	"strings"
 	"syscall"
+	"time"
 
-	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/segmentio/kafka-go"
 
 	"github.com/ecopoint/ecopoint/pkg/events"
-	"github.com/ecopoint/ecopoint/pkg/mq"
 )
 
 func main() {
@@ -23,34 +25,59 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	amqpURL := envOr("RABBITMQ_URL", "amqp://ecopoint:ecopoint_secret@localhost:5672/")
-	queueName := envOr("QUEUE_NAME", "notification.point_events")
-	prefetch, _ := strconv.Atoi(envOr("PREFETCH", "16"))
+	brokers := strings.Split(envOr("KAFKA_BROKERS", "localhost:9092"), ",")
+	topic := envOr("KAFKA_TOPIC_POINT_EVENTS", "point-events")
+	groupID := envOr("KAFKA_GROUP_ID", "notify-group")
 
-	conn, err := mq.Dial(ctx, amqpURL, logger)
-	if err != nil {
-		logger.Error("rabbitmq dial failed", "err", err.Error())
-		os.Exit(1)
-	}
+	reader := kafka.NewReader(kafka.ReaderConfig{
+		Brokers:        brokers,
+		Topic:          topic,
+		GroupID:        groupID,
+		MinBytes:       1,
+		MaxBytes:       10 << 20, // 10MB
+		StartOffset:    kafka.LastOffset,
+		ReadBackoffMin: 100 * time.Millisecond,
+		ReadBackoffMax: 1 * time.Second,
+		// CommitInterval = 0 (default) → ReadMessage tự commit offset đồng bộ.
+	})
 
-	consumer := mq.NewConsumer(conn, events.ExchangePointEvents, queueName, prefetch, logger, handle(logger))
+	// Graceful shutdown: SIGINT/SIGTERM → đóng reader → ReadMessage unblock.
+	go func() {
+		<-ctx.Done()
+		logger.Info("shutdown signal received, closing kafka reader")
+		if err := reader.Close(); err != nil {
+			logger.Warn("reader close failed", "err", err.Error())
+		}
+	}()
 
-	// Run blocks; khi ctx tắt → consumer drain → return.
-	logger.Info("notification-service ready")
-	consumer.Run(ctx)
+	logger.Info("notification-service consuming",
+		"brokers", brokers,
+		"topic", topic,
+		"group_id", groupID,
+	)
 
-	// Đóng connection sau khi consumer dừng để đảm bảo ack được flush.
-	conn.Close()
-	logger.Info("notification-service stopped")
-}
+	for {
+		msg, err := reader.ReadMessage(ctx)
+		if err != nil {
+			// Đây là các lỗi báo hiệu reader đã đóng / context hủy → thoát loop êm.
+			if errors.Is(err, context.Canceled) ||
+				errors.Is(err, io.EOF) ||
+				errors.Is(err, io.ErrClosedPipe) {
+				break
+			}
+			logger.Error("kafka read failed", "err", err.Error())
+			continue
+		}
 
-func handle(logger *slog.Logger) mq.Handler {
-	return func(_ context.Context, delivery amqp.Delivery) error {
 		var evt events.PointAdded
-		if err := json.Unmarshal(delivery.Body, &evt); err != nil {
-			logger.Error("unmarshal failed", "err", err.Error(), "body", string(delivery.Body))
-			// Trả nil → ACK để không kẹt poison message. Production nên route sang DLQ.
-			return nil
+		if err := json.Unmarshal(msg.Value, &evt); err != nil {
+			logger.Error("unmarshal failed",
+				"err", err.Error(),
+				"raw", string(msg.Value),
+				"offset", msg.Offset,
+				"partition", msg.Partition,
+			)
+			continue
 		}
 
 		logger.Info("point added — sending notification",
@@ -60,10 +87,13 @@ func handle(logger *slog.Logger) mq.Handler {
 			"balance_after", evt.BalanceAfter,
 			"source", evt.Source,
 			"occurred_at", evt.OccurredAt,
+			"offset", msg.Offset,
+			"partition", msg.Partition,
 		)
 		// TODO: gọi service push notification / email / SMS.
-		return nil
 	}
+
+	logger.Info("notification-service stopped")
 }
 
 func envOr(k, d string) string {

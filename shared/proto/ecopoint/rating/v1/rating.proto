@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package ecopoint.rating.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service RatingService {
+  rpc SubmitReview(SubmitReviewRequest) returns (SubmitReviewResponse);
+}
+
+message Review {
+  string id = 1;
+  string booking_id = 2;
+  string user_id = 3;
+  string collector_id = 4;
+  int32 rating = 5; // 1..5
+  string comment = 6;
+  repeated string media_urls = 7; // link đã upload xong qua media-service
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message SubmitReviewRequest {
+  string booking_id = 1;
+  string user_id = 2;
+  string collector_id = 3;
+  int32 rating = 4;
+  string comment = 5;
+  repeated string media_urls = 6;
+}
+
+message SubmitReviewResponse {
+  Review review = 1;
+}

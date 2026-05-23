@@ -21,6 +21,21 @@ func toPgText(s string) pgtype.Text {
 	return pgtype.Text{String: s, Valid: s != ""}
 }
 
+// sqlc gen với emit_pointers_for_null_types → cột TEXT nullable map sang *string.
+func toNullString(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+func derefString(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
+
 // Numeric ↔ shopspring/decimal: dùng big.Int + exponent để giữ chính xác tuyệt đối.
 func toPgNumeric(d decimal.Decimal) pgtype.Numeric {
 	return pgtype.Numeric{

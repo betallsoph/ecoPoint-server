@@ -1,21 +1,29 @@
+import "dotenv/config";
+
 import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@as-integrations/express5";
 import cors from "cors";
 import express from "express";
 
+import { buildContext, type GraphQLContext } from "./context.js";
 import { resolvers } from "./resolvers.js";
 import { typeDefs } from "./schema.js";
 
 async function main() {
   const app = express();
-  const apollo = new ApolloServer({ typeDefs, resolvers });
+  const apollo = new ApolloServer<GraphQLContext>({
+    typeDefs,
+    resolvers,
+  });
   await apollo.start();
 
   app.use(
     "/graphql",
     cors(),
     express.json(),
-    expressMiddleware(apollo),
+    expressMiddleware(apollo, {
+      context: buildContext, // ← Authorization header → ctx.user
+    }),
   );
 
   app.get("/healthz", (_req, res) => res.json({ ok: true }));

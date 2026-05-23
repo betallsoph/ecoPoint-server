@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package ecopoint.media.v1;
+
+import "google/protobuf/timestamp.proto";
+
+service MediaService {
+  // Tạo URL pre-signed để mobile app PUT trực tiếp lên MinIO/S3,
+  // tránh upload đi qua backend. Hết hạn sau 15 phút.
+  rpc GeneratePresignedUrl(GeneratePresignedUrlRequest) returns (GeneratePresignedUrlResponse);
+}
+
+message GeneratePresignedUrlRequest {
+  // Tên file gốc do app cung cấp (sẽ được sanitize).
+  string filename = 1;
+  // MIME type, ví dụ "image/jpeg". Optional, server không bắt buộc client gửi.
+  string content_type = 2;
+  // Bucket đích. Bỏ trống = dùng default bucket của media-service.
+  string bucket = 3;
+}
+
+message GeneratePresignedUrlResponse {
+  // URL để mobile app gọi PUT kèm body file.
+  string upload_url = 1;
+  // Key (path) của object trong bucket — backend lưu cùng entity (booking, review…).
+  string object_key = 2;
+  // URL công khai để download/render sau khi upload xong.
+  string public_url = 3;
+  // Thời điểm hết hạn của upload_url.
+  google.protobuf.Timestamp expires_at = 4;
+}

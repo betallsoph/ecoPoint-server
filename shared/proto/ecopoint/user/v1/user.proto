@@ -5,11 +5,16 @@ package ecopoint.user.v1;
 import "google/protobuf/timestamp.proto";
 
 service UserService {
+  // ----- Auth -----
+  rpc Register(RegisterRequest) returns (AuthResponse);
+  rpc Login(LoginRequest) returns (AuthResponse);
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+
+  // ----- Profile -----
   rpc GetUserInfo(GetUserInfoRequest) returns (GetUserInfoResponse);
-  rpc VerifyToken(VerifyTokenRequest) returns (VerifyTokenResponse);
 }
 
-// ---------------- Messages ----------------
+// ---------------- Domain ----------------
 
 enum UserRole {
   USER_ROLE_UNSPECIFIED = 0;
@@ -30,21 +35,44 @@ message User {
   google.protobuf.Timestamp updated_at = 9;
 }
 
+// ---------------- Auth payloads ----------------
+
+message RegisterRequest {
+  string email = 1;
+  string password = 2;
+  string full_name = 3;
+  string phone = 4;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message AuthResponse {
+  string access_token = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  User user = 3;
+}
+
+message ValidateTokenRequest {
+  string access_token = 1;
+}
+
+message ValidateTokenResponse {
+  bool valid = 1;
+  string user_id = 2;
+  string email = 3;
+  UserRole role = 4;
+  google.protobuf.Timestamp expires_at = 5;
+}
+
+// ---------------- Profile payloads ----------------
+
 message GetUserInfoRequest {
   string user_id = 1;
 }
 
 message GetUserInfoResponse {
   User user = 1;
-}
-
-message VerifyTokenRequest {
-  string access_token = 1;
-}
-
-message VerifyTokenResponse {
-  bool valid = 1;
-  string user_id = 2;
-  UserRole role = 3;
-  google.protobuf.Timestamp expires_at = 4;
 }

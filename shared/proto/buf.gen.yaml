@@ -21,14 +21,15 @@ plugins:
       - require_unimplemented_servers=false
 
   # ---------- TypeScript (Node.js) ----------
-  - remote: buf.build/bufbuild/es:v2.2.0
+  - remote: buf.build/bufbuild/es:v1.10.0
     out: ../libs/ts
     opt:
       - target=ts
-      - import_extension=js
+      - import_extension=.js
+      - ts_nocheck=false
 
   - remote: buf.build/connectrpc/es:v1.6.1
     out: ../libs/ts
     opt:
       - target=ts
-      - import_extension=js
+      - import_extension=.js

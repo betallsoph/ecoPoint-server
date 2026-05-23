@@ -6,16 +6,17 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/segmentio/kafka-go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 
 	pointv1 "github.com/ecopoint/ecopoint/shared/libs/go/ecopoint/point/v1"
 
-	"github.com/ecopoint/ecopoint/pkg/events"
-	"github.com/ecopoint/ecopoint/pkg/mq"
 	grpcserver "github.com/ecopoint/ecopoint/services/point/internal/grpc"
 )
 
@@ -35,20 +36,25 @@ func main() {
 	}
 	defer pool.Close()
 
-	// ---- RabbitMQ (auto-reconnect) ----
-	amqpConn, err := mq.Dial(ctx, envOr("RABBITMQ_URL", "amqp://ecopoint:ecopoint_secret@localhost:5672/"), logger)
-	if err != nil {
-		logger.Error("rabbitmq dial failed", "err", err.Error())
-		os.Exit(1)
+	// ---- Kafka producer ----
+	brokers := strings.Split(envOr("KAFKA_BROKERS", "localhost:9092"), ",")
+	topic := envOr("KAFKA_TOPIC_POINT_EVENTS", "point-events")
+	writer := &kafka.Writer{
+		Addr:                   kafka.TCP(brokers...),
+		Topic:                  topic,
+		Balancer:               &kafka.Hash{}, // partition theo key=UserID → giữ thứ tự cho cùng 1 user
+		RequiredAcks:           kafka.RequireAll,
+		AllowAutoTopicCreation: true,
+		BatchTimeout:           50 * time.Millisecond,
+		WriteTimeout:           10 * time.Second,
+		Async:                  false,
 	}
-	defer amqpConn.Close()
-
-	publisher, err := mq.NewPublisher(amqpConn, events.ExchangePointEvents, logger)
-	if err != nil {
-		logger.Error("publisher init failed", "err", err.Error())
-		os.Exit(1)
-	}
-	defer publisher.Close()
+	defer func() {
+		if err := writer.Close(); err != nil {
+			logger.Warn("kafka writer close failed", "err", err.Error())
+		}
+	}()
+	logger.Info("kafka producer ready", "brokers", brokers, "topic", topic)
 
 	// ---- gRPC ----
 	port := envOr("GRPC_PORT", "50053")
@@ -59,10 +65,10 @@ func main() {
 	}
 
 	srv := grpc.NewServer()
-	pointv1.RegisterPointServiceServer(srv, grpcserver.NewPointServer(pool, publisher, logger))
+	pointv1.RegisterPointServiceServer(srv, grpcserver.NewPointServer(pool, writer, logger))
 	reflection.Register(srv)
 
-	// Graceful shutdown: chờ tín hiệu → drain RPC → đóng AMQP → kết thúc.
+	// Graceful shutdown: chờ tín hiệu → drain RPC → đóng writer.
 	go func() {
 		<-ctx.Done()
 		logger.Info("shutdown signal received, draining grpc")

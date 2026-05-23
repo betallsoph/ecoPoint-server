@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package ecopoint.reward.v1;
+
+import "ecopoint/common/v1/common.proto";
+import "google/protobuf/timestamp.proto";
+
+service RewardService {
+  rpc RedeemVoucher(RedeemVoucherRequest) returns (RedeemVoucherResponse);
+}
+
+enum RedemptionStatus {
+  REDEMPTION_STATUS_UNSPECIFIED = 0;
+  REDEMPTION_STATUS_PENDING = 1;
+  REDEMPTION_STATUS_COMPLETED = 2;
+  REDEMPTION_STATUS_CANCELLED = 3;
+}
+
+message Redemption {
+  string id = 1;
+  string voucher_id = 2;
+  string user_id = 3;
+  ecopoint.common.v1.Decimal point_cost = 4;
+  RedemptionStatus status = 5;
+  string point_tx_id = 6;
+  string failure_reason = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp completed_at = 9;
+}
+
+message RedeemVoucherRequest {
+  string user_id = 1;
+  string voucher_id = 2;
+  // Bắt buộc — chống double-redeem khi client retry.
+  string idempotency_key = 3;
+}
+
+message RedeemVoucherResponse {
+  Redemption redemption = 1;
+  // Số dư sau khi trừ điểm (lấy từ Point Service).
+  ecopoint.common.v1.Decimal new_balance = 2;
+}

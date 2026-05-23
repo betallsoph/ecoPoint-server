@@ -7,6 +7,9 @@ lint:
     - STANDARD
   except:
     - PACKAGE_VERSION_SUFFIX
+    # Cho phép AuthResponse dùng chung cho Register + Login (semantic giống nhau).
+    - RPC_REQUEST_RESPONSE_UNIQUE
+    - RPC_RESPONSE_STANDARD_NAME
 breaking:
   use:
     - FILE
