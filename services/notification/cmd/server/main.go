@@ -15,9 +15,13 @@ import (
 	"github.com/segmentio/kafka-go"
 
 	"github.com/ecopoint/ecopoint/pkg/events"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	_ = godotenv.Load() // .env (nếu có) — silent khi vắng
+
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	logger = logger.With("service", "notification")
 	slog.SetDefault(logger)

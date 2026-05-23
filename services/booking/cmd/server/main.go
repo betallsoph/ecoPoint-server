@@ -11,12 +11,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+
+	"github.com/joho/godotenv"
 )
 
 // Booking-service gRPC bootstrap.
 // Proto BookingService chưa được khai báo trong shared/proto — service hiện
 // chỉ wire-up DB pool + gRPC server rỗng để dev tiếp.
 func main() {
+	_ = godotenv.Load() // .env (nếu có) — silent khi vắng
+
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 

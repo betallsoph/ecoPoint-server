@@ -18,9 +18,13 @@ import (
 	pointv1 "github.com/ecopoint/ecopoint/shared/libs/go/ecopoint/point/v1"
 
 	grpcserver "github.com/ecopoint/ecopoint/services/point/internal/grpc"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	_ = godotenv.Load() // .env (nếu có) — silent khi vắng
+
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	logger = logger.With("service", "point")
 	slog.SetDefault(logger)

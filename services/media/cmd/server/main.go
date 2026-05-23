@@ -16,9 +16,13 @@ import (
 
 	grpcserver "github.com/ecopoint/ecopoint/services/media/internal/grpc"
 	"github.com/ecopoint/ecopoint/services/media/internal/storage"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	_ = godotenv.Load() // .env (nếu có) — silent khi vắng
+
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	logger = logger.With("service", "media")
 	slog.SetDefault(logger)

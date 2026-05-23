@@ -16,9 +16,13 @@ import (
 
 	grpcserver "github.com/ecopoint/ecopoint/services/rating/internal/grpc"
 	mongorepo "github.com/ecopoint/ecopoint/services/rating/internal/mongo"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	_ = godotenv.Load() // .env (nếu có) — silent khi vắng
+
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	logger = logger.With("service", "rating")
 	slog.SetDefault(logger)
