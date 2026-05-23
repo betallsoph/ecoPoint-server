@@ -78,7 +78,9 @@ services:
 
   # ===================== Apache Kafka (KRaft, no Zookeeper) =====================
   kafka:
-    image: bitnami/kafka:latest
+    # Bitnami đổi policy 8/2025 — `bitnami/kafka:latest` bị xoá; free legacy
+    # images chuyển sang namespace `bitnamilegacy/`. Env `KAFKA_CFG_*` giữ nguyên.
+    image: bitnamilegacy/kafka:latest
     container_name: ecopoint-kafka
     restart: unless-stopped
     ports:
