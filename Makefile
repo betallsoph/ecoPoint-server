@@ -40,6 +40,18 @@ sqlc:
 	cd services/reward  && sqlc generate
 
 # ============================================================
+# DATABASE MIGRATIONS (chạy qua docker exec → tránh đụng Postgres local)
+# ============================================================
+migrate:
+	@for db in point booking reward; do \
+		echo "→ migrating db_$$db"; \
+		docker exec -i ecopoint-postgres psql -U $${POSTGRES_USER:-ecopoint} -d db_$$db \
+			< services/$$db/db/migrations/001_schema.sql >/dev/null; \
+	done
+	@cd services/user && npm run db:push --silent
+	@echo "✅ Migrations applied"
+
+# ============================================================
 # VERIFY
 # ============================================================
 build:
