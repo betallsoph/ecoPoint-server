@@ -2,75 +2,119 @@ syntax = "proto3";
 
 package ecopoint.point.v1;
 
-import "ecopoint/common/v1/common.proto";
 import "google/protobuf/timestamp.proto";
 
+// PointService — V1.3 Two-Phase Ledger.
+// 1 EP = 100 VNĐ. Mọi cột tiền dùng int64 (không còn float / Decimal).
 service PointService {
-  rpc AddPoints(AddPointsRequest) returns (AddPointsResponse);
-  rpc DeductPoints(DeductPointsRequest) returns (DeductPointsResponse);
+  // Trừ thẳng quỹ khả dụng — dùng cho phí 20 EP của Vựa,
+  // redeem voucher, phí giao dịch B2B Phase 3.
+  rpc DeductFee(DeductFeeRequest) returns (DeductFeeResponse);
+
+  // Driver chốt đơn → cộng điểm vào balance_pending,
+  // chưa khả dụng cho user đến khi Vựa Confirm.
+  rpc IssuePendingReward(IssueRewardRequest) returns (IssueRewardResponse);
+
+  // Vựa xác nhận nhập kho → pending chuyển sang available.
+  rpc ConfirmReward(ConfirmRewardRequest) returns (ConfirmRewardResponse);
+
+  // Vựa phát hiện gian lận / lệch cân > 10% → huỷ pending,
+  // trừ điểm khỏi balance_pending mà KHÔNG cộng vào available.
+  rpc CancelReward(CancelRewardRequest) returns (CancelRewardResponse);
+
+  // Đọc số dư (cho UI / Gateway).
   rpc GetBalance(GetBalanceRequest) returns (GetBalanceResponse);
 }
+
+// ============================================================
+// Common
+// ============================================================
+
+message PointTransaction {
+  string id = 1;
+  string user_id = 2;
+  string tx_type = 3; // "add" | "deduct"
+  int64 amount = 4; // luôn dương
+  int64 balance_after = 5; // tổng = available + pending sau tx commit
+  string status = 6; // "pending" | "available" | "cancelled"
+  string source = 7;
+  string reference_id = 8;
+  string idempotency_key = 9;
+  google.protobuf.Timestamp created_at = 10;
+}
+
+// ============================================================
+// GetBalance
+// ============================================================
 
 message GetBalanceRequest {
   string user_id = 1;
 }
 
 message GetBalanceResponse {
-  ecopoint.common.v1.Decimal balance = 1;
+  int64 balance_available = 1;
+  int64 balance_pending = 2;
 }
 
-// ---------------- Messages ----------------
+// ============================================================
+// DeductFee
+// ============================================================
 
-enum PointSource {
-  POINT_SOURCE_UNSPECIFIED = 0;
-  POINT_SOURCE_BOOKING = 1; // Hoàn thành đơn thu gom
-  POINT_SOURCE_PROMOTION = 2; // Khuyến mãi / quà tặng
-  POINT_SOURCE_REFUND = 3; // Hoàn điểm
-  POINT_SOURCE_ADJUSTMENT = 4; // Điều chỉnh từ admin
-}
-
-enum PointDeductReason {
-  POINT_DEDUCT_REASON_UNSPECIFIED = 0;
-  POINT_DEDUCT_REASON_REDEEM = 1; // Đổi phần thưởng
-  POINT_DEDUCT_REASON_EXPIRED = 2;
-  POINT_DEDUCT_REASON_PENALTY = 3;
-  POINT_DEDUCT_REASON_ADJUSTMENT = 4;
-}
-
-message PointTransaction {
-  string id = 1;
-  string user_id = 2;
-  ecopoint.common.v1.Decimal amount = 3; // luôn dương
-  ecopoint.common.v1.Decimal balance_after = 4;
-  string reference_id = 5; // booking_id / reward_id
-  google.protobuf.Timestamp created_at = 6;
-}
-
-// ---- AddPoints ----
-message AddPointsRequest {
+message DeductFeeRequest {
   string user_id = 1;
-  ecopoint.common.v1.Decimal amount = 2;
-  PointSource source = 3;
-  string reference_id = 4;
-  // Idempotency key để chống cộng điểm trùng khi retry.
+  int64 amount = 2;
+  string reason = 3; // "station_fee_20ep" | "redeem_voucher" | "platform_fee" | ...
+  string reference_id = 4; // booking_id / voucher_id / ...
   string idempotency_key = 5;
 }
 
-message AddPointsResponse {
+message DeductFeeResponse {
   PointTransaction transaction = 1;
-  ecopoint.common.v1.Decimal new_balance = 2;
+  int64 new_balance_available = 2;
 }
 
-// ---- DeductPoints ----
-message DeductPointsRequest {
+// ============================================================
+// IssuePendingReward
+// ============================================================
+
+message IssueRewardRequest {
   string user_id = 1;
-  ecopoint.common.v1.Decimal amount = 2;
-  PointDeductReason reason = 3;
+  int64 amount = 2;
+  string source = 3; // "booking_reward" | "promotion" | ...
   string reference_id = 4;
   string idempotency_key = 5;
 }
 
-message DeductPointsResponse {
+message IssueRewardResponse {
   PointTransaction transaction = 1;
-  ecopoint.common.v1.Decimal new_balance = 2;
+  int64 new_balance_pending = 2;
+}
+
+// ============================================================
+// ConfirmReward (pending → available)
+// ============================================================
+
+message ConfirmRewardRequest {
+  string transaction_id = 1;
+  string confirmed_by = 2; // station_id (logical, không FK chéo DB)
+}
+
+message ConfirmRewardResponse {
+  PointTransaction transaction = 1;
+  int64 new_balance_available = 2;
+  int64 new_balance_pending = 3;
+}
+
+// ============================================================
+// CancelReward (pending → cancelled)
+// ============================================================
+
+message CancelRewardRequest {
+  string transaction_id = 1;
+  string reason = 2; // "weight_mismatch" | "fraud_detected" | ...
+}
+
+message CancelRewardResponse {
+  PointTransaction transaction = 1;
+  int64 new_balance_pending = 2;
 }

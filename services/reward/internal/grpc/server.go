@@ -160,10 +160,12 @@ func (s *RewardServer) RedeemVoucher(ctx context.Context, req *rewardv1.RedeemVo
 	deductCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	deductResp, deductErr := s.pointClient.DeductPoints(deductCtx, &pointv1.DeductPointsRequest{
+	// V1.3: dùng DeductFee (int64). Decimal → int64 = IntPart (point_cost luôn
+	// là số nguyên tự nhiên trong v1.3).
+	deductResp, deductErr := s.pointClient.DeductFee(deductCtx, &pointv1.DeductFeeRequest{
 		UserId:         userID.String(),
-		Amount:         &commonv1.Decimal{Value: pointCost.String()},
-		Reason:         pointv1.PointDeductReason_POINT_DEDUCT_REASON_REDEEM,
+		Amount:         pointCost.IntPart(),
+		Reason:         "redeem_voucher",
 		ReferenceId:    redemptionUUID.String(),
 		IdempotencyKey: "redeem-" + redemptionUUID.String(),
 	})
@@ -213,10 +215,8 @@ func (s *RewardServer) RedeemVoucher(ctx context.Context, req *rewardv1.RedeemVo
 
 	s.publishRedeemed(ctx, completed, pointTxID)
 
-	newBalance := decimal.Zero
-	if v := deductResp.GetNewBalance().GetValue(); v != "" {
-		newBalance, _ = decimal.NewFromString(v)
-	}
+	// V1.3: NewBalanceAvailable là int64.
+	newBalance := decimal.NewFromInt(deductResp.GetNewBalanceAvailable())
 
 	s.log.Info("saga: redemption completed",
 		"redemption_id", redemptionUUID,

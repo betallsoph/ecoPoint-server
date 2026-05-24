@@ -3,94 +3,106 @@
 /* eslint-disable */
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
-import { Decimal } from "../../common/v1/common_pb.js";
+import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 
 /**
- * @generated from enum ecopoint.point.v1.PointSource
+ * @generated from message ecopoint.point.v1.PointTransaction
  */
-export enum PointSource {
+export class PointTransaction extends Message<PointTransaction> {
   /**
-   * @generated from enum value: POINT_SOURCE_UNSPECIFIED = 0;
+   * @generated from field: string id = 1;
    */
-  UNSPECIFIED = 0,
+  id = "";
 
   /**
-   * Hoàn thành đơn thu gom
-   *
-   * @generated from enum value: POINT_SOURCE_BOOKING = 1;
+   * @generated from field: string user_id = 2;
    */
-  BOOKING = 1,
+  userId = "";
 
   /**
-   * Khuyến mãi / quà tặng
+   * "add" | "deduct"
    *
-   * @generated from enum value: POINT_SOURCE_PROMOTION = 2;
+   * @generated from field: string tx_type = 3;
    */
-  PROMOTION = 2,
+  txType = "";
 
   /**
-   * Hoàn điểm
+   * luôn dương
    *
-   * @generated from enum value: POINT_SOURCE_REFUND = 3;
+   * @generated from field: int64 amount = 4;
    */
-  REFUND = 3,
+  amount = protoInt64.zero;
 
   /**
-   * Điều chỉnh từ admin
+   * tổng = available + pending sau tx commit
    *
-   * @generated from enum value: POINT_SOURCE_ADJUSTMENT = 4;
+   * @generated from field: int64 balance_after = 5;
    */
-  ADJUSTMENT = 4,
+  balanceAfter = protoInt64.zero;
+
+  /**
+   * "pending" | "available" | "cancelled"
+   *
+   * @generated from field: string status = 6;
+   */
+  status = "";
+
+  /**
+   * @generated from field: string source = 7;
+   */
+  source = "";
+
+  /**
+   * @generated from field: string reference_id = 8;
+   */
+  referenceId = "";
+
+  /**
+   * @generated from field: string idempotency_key = 9;
+   */
+  idempotencyKey = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp created_at = 10;
+   */
+  createdAt?: Timestamp;
+
+  constructor(data?: PartialMessage<PointTransaction>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "ecopoint.point.v1.PointTransaction";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "tx_type", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "amount", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 5, name: "balance_after", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 6, name: "status", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "source", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 8, name: "reference_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 9, name: "idempotency_key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 10, name: "created_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PointTransaction {
+    return new PointTransaction().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PointTransaction {
+    return new PointTransaction().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PointTransaction {
+    return new PointTransaction().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PointTransaction | PlainMessage<PointTransaction> | undefined, b: PointTransaction | PlainMessage<PointTransaction> | undefined): boolean {
+    return proto3.util.equals(PointTransaction, a, b);
+  }
 }
-// Retrieve enum metadata with: proto3.getEnumType(PointSource)
-proto3.util.setEnumType(PointSource, "ecopoint.point.v1.PointSource", [
-  { no: 0, name: "POINT_SOURCE_UNSPECIFIED" },
-  { no: 1, name: "POINT_SOURCE_BOOKING" },
-  { no: 2, name: "POINT_SOURCE_PROMOTION" },
-  { no: 3, name: "POINT_SOURCE_REFUND" },
-  { no: 4, name: "POINT_SOURCE_ADJUSTMENT" },
-]);
-
-/**
- * @generated from enum ecopoint.point.v1.PointDeductReason
- */
-export enum PointDeductReason {
-  /**
-   * @generated from enum value: POINT_DEDUCT_REASON_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * Đổi phần thưởng
-   *
-   * @generated from enum value: POINT_DEDUCT_REASON_REDEEM = 1;
-   */
-  REDEEM = 1,
-
-  /**
-   * @generated from enum value: POINT_DEDUCT_REASON_EXPIRED = 2;
-   */
-  EXPIRED = 2,
-
-  /**
-   * @generated from enum value: POINT_DEDUCT_REASON_PENALTY = 3;
-   */
-  PENALTY = 3,
-
-  /**
-   * @generated from enum value: POINT_DEDUCT_REASON_ADJUSTMENT = 4;
-   */
-  ADJUSTMENT = 4,
-}
-// Retrieve enum metadata with: proto3.getEnumType(PointDeductReason)
-proto3.util.setEnumType(PointDeductReason, "ecopoint.point.v1.PointDeductReason", [
-  { no: 0, name: "POINT_DEDUCT_REASON_UNSPECIFIED" },
-  { no: 1, name: "POINT_DEDUCT_REASON_REDEEM" },
-  { no: 2, name: "POINT_DEDUCT_REASON_EXPIRED" },
-  { no: 3, name: "POINT_DEDUCT_REASON_PENALTY" },
-  { no: 4, name: "POINT_DEDUCT_REASON_ADJUSTMENT" },
-]);
 
 /**
  * @generated from message ecopoint.point.v1.GetBalanceRequest
@@ -134,9 +146,14 @@ export class GetBalanceRequest extends Message<GetBalanceRequest> {
  */
 export class GetBalanceResponse extends Message<GetBalanceResponse> {
   /**
-   * @generated from field: ecopoint.common.v1.Decimal balance = 1;
+   * @generated from field: int64 balance_available = 1;
    */
-  balance?: Decimal;
+  balanceAvailable = protoInt64.zero;
+
+  /**
+   * @generated from field: int64 balance_pending = 2;
+   */
+  balancePending = protoInt64.zero;
 
   constructor(data?: PartialMessage<GetBalanceResponse>) {
     super();
@@ -146,7 +163,8 @@ export class GetBalanceResponse extends Message<GetBalanceResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "ecopoint.point.v1.GetBalanceResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "balance", kind: "message", T: Decimal },
+    { no: 1, name: "balance_available", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 2, name: "balance_pending", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetBalanceResponse {
@@ -167,204 +185,133 @@ export class GetBalanceResponse extends Message<GetBalanceResponse> {
 }
 
 /**
- * @generated from message ecopoint.point.v1.PointTransaction
+ * @generated from message ecopoint.point.v1.DeductFeeRequest
  */
-export class PointTransaction extends Message<PointTransaction> {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
-   * @generated from field: string user_id = 2;
-   */
-  userId = "";
-
-  /**
-   * luôn dương
-   *
-   * @generated from field: ecopoint.common.v1.Decimal amount = 3;
-   */
-  amount?: Decimal;
-
-  /**
-   * @generated from field: ecopoint.common.v1.Decimal balance_after = 4;
-   */
-  balanceAfter?: Decimal;
-
-  /**
-   * booking_id / reward_id
-   *
-   * @generated from field: string reference_id = 5;
-   */
-  referenceId = "";
-
-  /**
-   * @generated from field: google.protobuf.Timestamp created_at = 6;
-   */
-  createdAt?: Timestamp;
-
-  constructor(data?: PartialMessage<PointTransaction>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "ecopoint.point.v1.PointTransaction";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "amount", kind: "message", T: Decimal },
-    { no: 4, name: "balance_after", kind: "message", T: Decimal },
-    { no: 5, name: "reference_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 6, name: "created_at", kind: "message", T: Timestamp },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PointTransaction {
-    return new PointTransaction().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PointTransaction {
-    return new PointTransaction().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PointTransaction {
-    return new PointTransaction().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: PointTransaction | PlainMessage<PointTransaction> | undefined, b: PointTransaction | PlainMessage<PointTransaction> | undefined): boolean {
-    return proto3.util.equals(PointTransaction, a, b);
-  }
-}
-
-/**
- * ---- AddPoints ----
- *
- * @generated from message ecopoint.point.v1.AddPointsRequest
- */
-export class AddPointsRequest extends Message<AddPointsRequest> {
+export class DeductFeeRequest extends Message<DeductFeeRequest> {
   /**
    * @generated from field: string user_id = 1;
    */
   userId = "";
 
   /**
-   * @generated from field: ecopoint.common.v1.Decimal amount = 2;
+   * @generated from field: int64 amount = 2;
    */
-  amount?: Decimal;
+  amount = protoInt64.zero;
 
   /**
-   * @generated from field: ecopoint.point.v1.PointSource source = 3;
+   * "station_fee_20ep" | "redeem_voucher" | "platform_fee" | ...
+   *
+   * @generated from field: string reason = 3;
    */
-  source = PointSource.UNSPECIFIED;
+  reason = "";
 
   /**
+   * booking_id / voucher_id / ...
+   *
    * @generated from field: string reference_id = 4;
    */
   referenceId = "";
 
   /**
-   * Idempotency key để chống cộng điểm trùng khi retry.
-   *
    * @generated from field: string idempotency_key = 5;
    */
   idempotencyKey = "";
 
-  constructor(data?: PartialMessage<AddPointsRequest>) {
+  constructor(data?: PartialMessage<DeductFeeRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "ecopoint.point.v1.AddPointsRequest";
+  static readonly typeName = "ecopoint.point.v1.DeductFeeRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "amount", kind: "message", T: Decimal },
-    { no: 3, name: "source", kind: "enum", T: proto3.getEnumType(PointSource) },
+    { no: 2, name: "amount", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "reference_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "idempotency_key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AddPointsRequest {
-    return new AddPointsRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeductFeeRequest {
+    return new DeductFeeRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AddPointsRequest {
-    return new AddPointsRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeductFeeRequest {
+    return new DeductFeeRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AddPointsRequest {
-    return new AddPointsRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeductFeeRequest {
+    return new DeductFeeRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: AddPointsRequest | PlainMessage<AddPointsRequest> | undefined, b: AddPointsRequest | PlainMessage<AddPointsRequest> | undefined): boolean {
-    return proto3.util.equals(AddPointsRequest, a, b);
+  static equals(a: DeductFeeRequest | PlainMessage<DeductFeeRequest> | undefined, b: DeductFeeRequest | PlainMessage<DeductFeeRequest> | undefined): boolean {
+    return proto3.util.equals(DeductFeeRequest, a, b);
   }
 }
 
 /**
- * @generated from message ecopoint.point.v1.AddPointsResponse
+ * @generated from message ecopoint.point.v1.DeductFeeResponse
  */
-export class AddPointsResponse extends Message<AddPointsResponse> {
+export class DeductFeeResponse extends Message<DeductFeeResponse> {
   /**
    * @generated from field: ecopoint.point.v1.PointTransaction transaction = 1;
    */
   transaction?: PointTransaction;
 
   /**
-   * @generated from field: ecopoint.common.v1.Decimal new_balance = 2;
+   * @generated from field: int64 new_balance_available = 2;
    */
-  newBalance?: Decimal;
+  newBalanceAvailable = protoInt64.zero;
 
-  constructor(data?: PartialMessage<AddPointsResponse>) {
+  constructor(data?: PartialMessage<DeductFeeResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "ecopoint.point.v1.AddPointsResponse";
+  static readonly typeName = "ecopoint.point.v1.DeductFeeResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "transaction", kind: "message", T: PointTransaction },
-    { no: 2, name: "new_balance", kind: "message", T: Decimal },
+    { no: 2, name: "new_balance_available", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AddPointsResponse {
-    return new AddPointsResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeductFeeResponse {
+    return new DeductFeeResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AddPointsResponse {
-    return new AddPointsResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeductFeeResponse {
+    return new DeductFeeResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AddPointsResponse {
-    return new AddPointsResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeductFeeResponse {
+    return new DeductFeeResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: AddPointsResponse | PlainMessage<AddPointsResponse> | undefined, b: AddPointsResponse | PlainMessage<AddPointsResponse> | undefined): boolean {
-    return proto3.util.equals(AddPointsResponse, a, b);
+  static equals(a: DeductFeeResponse | PlainMessage<DeductFeeResponse> | undefined, b: DeductFeeResponse | PlainMessage<DeductFeeResponse> | undefined): boolean {
+    return proto3.util.equals(DeductFeeResponse, a, b);
   }
 }
 
 /**
- * ---- DeductPoints ----
- *
- * @generated from message ecopoint.point.v1.DeductPointsRequest
+ * @generated from message ecopoint.point.v1.IssueRewardRequest
  */
-export class DeductPointsRequest extends Message<DeductPointsRequest> {
+export class IssueRewardRequest extends Message<IssueRewardRequest> {
   /**
    * @generated from field: string user_id = 1;
    */
   userId = "";
 
   /**
-   * @generated from field: ecopoint.common.v1.Decimal amount = 2;
+   * @generated from field: int64 amount = 2;
    */
-  amount?: Decimal;
+  amount = protoInt64.zero;
 
   /**
-   * @generated from field: ecopoint.point.v1.PointDeductReason reason = 3;
+   * "booking_reward" | "promotion" | ...
+   *
+   * @generated from field: string source = 3;
    */
-  reason = PointDeductReason.UNSPECIFIED;
+  source = "";
 
   /**
    * @generated from field: string reference_id = 4;
@@ -376,78 +323,260 @@ export class DeductPointsRequest extends Message<DeductPointsRequest> {
    */
   idempotencyKey = "";
 
-  constructor(data?: PartialMessage<DeductPointsRequest>) {
+  constructor(data?: PartialMessage<IssueRewardRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "ecopoint.point.v1.DeductPointsRequest";
+  static readonly typeName = "ecopoint.point.v1.IssueRewardRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "amount", kind: "message", T: Decimal },
-    { no: 3, name: "reason", kind: "enum", T: proto3.getEnumType(PointDeductReason) },
+    { no: 2, name: "amount", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "source", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "reference_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "idempotency_key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeductPointsRequest {
-    return new DeductPointsRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): IssueRewardRequest {
+    return new IssueRewardRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeductPointsRequest {
-    return new DeductPointsRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): IssueRewardRequest {
+    return new IssueRewardRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeductPointsRequest {
-    return new DeductPointsRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): IssueRewardRequest {
+    return new IssueRewardRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: DeductPointsRequest | PlainMessage<DeductPointsRequest> | undefined, b: DeductPointsRequest | PlainMessage<DeductPointsRequest> | undefined): boolean {
-    return proto3.util.equals(DeductPointsRequest, a, b);
+  static equals(a: IssueRewardRequest | PlainMessage<IssueRewardRequest> | undefined, b: IssueRewardRequest | PlainMessage<IssueRewardRequest> | undefined): boolean {
+    return proto3.util.equals(IssueRewardRequest, a, b);
   }
 }
 
 /**
- * @generated from message ecopoint.point.v1.DeductPointsResponse
+ * @generated from message ecopoint.point.v1.IssueRewardResponse
  */
-export class DeductPointsResponse extends Message<DeductPointsResponse> {
+export class IssueRewardResponse extends Message<IssueRewardResponse> {
   /**
    * @generated from field: ecopoint.point.v1.PointTransaction transaction = 1;
    */
   transaction?: PointTransaction;
 
   /**
-   * @generated from field: ecopoint.common.v1.Decimal new_balance = 2;
+   * @generated from field: int64 new_balance_pending = 2;
    */
-  newBalance?: Decimal;
+  newBalancePending = protoInt64.zero;
 
-  constructor(data?: PartialMessage<DeductPointsResponse>) {
+  constructor(data?: PartialMessage<IssueRewardResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "ecopoint.point.v1.DeductPointsResponse";
+  static readonly typeName = "ecopoint.point.v1.IssueRewardResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "transaction", kind: "message", T: PointTransaction },
-    { no: 2, name: "new_balance", kind: "message", T: Decimal },
+    { no: 2, name: "new_balance_pending", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeductPointsResponse {
-    return new DeductPointsResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): IssueRewardResponse {
+    return new IssueRewardResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeductPointsResponse {
-    return new DeductPointsResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): IssueRewardResponse {
+    return new IssueRewardResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeductPointsResponse {
-    return new DeductPointsResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): IssueRewardResponse {
+    return new IssueRewardResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: DeductPointsResponse | PlainMessage<DeductPointsResponse> | undefined, b: DeductPointsResponse | PlainMessage<DeductPointsResponse> | undefined): boolean {
-    return proto3.util.equals(DeductPointsResponse, a, b);
+  static equals(a: IssueRewardResponse | PlainMessage<IssueRewardResponse> | undefined, b: IssueRewardResponse | PlainMessage<IssueRewardResponse> | undefined): boolean {
+    return proto3.util.equals(IssueRewardResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message ecopoint.point.v1.ConfirmRewardRequest
+ */
+export class ConfirmRewardRequest extends Message<ConfirmRewardRequest> {
+  /**
+   * @generated from field: string transaction_id = 1;
+   */
+  transactionId = "";
+
+  /**
+   * station_id (logical, không FK chéo DB)
+   *
+   * @generated from field: string confirmed_by = 2;
+   */
+  confirmedBy = "";
+
+  constructor(data?: PartialMessage<ConfirmRewardRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "ecopoint.point.v1.ConfirmRewardRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "transaction_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "confirmed_by", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ConfirmRewardRequest {
+    return new ConfirmRewardRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ConfirmRewardRequest {
+    return new ConfirmRewardRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ConfirmRewardRequest {
+    return new ConfirmRewardRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ConfirmRewardRequest | PlainMessage<ConfirmRewardRequest> | undefined, b: ConfirmRewardRequest | PlainMessage<ConfirmRewardRequest> | undefined): boolean {
+    return proto3.util.equals(ConfirmRewardRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message ecopoint.point.v1.ConfirmRewardResponse
+ */
+export class ConfirmRewardResponse extends Message<ConfirmRewardResponse> {
+  /**
+   * @generated from field: ecopoint.point.v1.PointTransaction transaction = 1;
+   */
+  transaction?: PointTransaction;
+
+  /**
+   * @generated from field: int64 new_balance_available = 2;
+   */
+  newBalanceAvailable = protoInt64.zero;
+
+  /**
+   * @generated from field: int64 new_balance_pending = 3;
+   */
+  newBalancePending = protoInt64.zero;
+
+  constructor(data?: PartialMessage<ConfirmRewardResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "ecopoint.point.v1.ConfirmRewardResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "transaction", kind: "message", T: PointTransaction },
+    { no: 2, name: "new_balance_available", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 3, name: "new_balance_pending", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ConfirmRewardResponse {
+    return new ConfirmRewardResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ConfirmRewardResponse {
+    return new ConfirmRewardResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ConfirmRewardResponse {
+    return new ConfirmRewardResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ConfirmRewardResponse | PlainMessage<ConfirmRewardResponse> | undefined, b: ConfirmRewardResponse | PlainMessage<ConfirmRewardResponse> | undefined): boolean {
+    return proto3.util.equals(ConfirmRewardResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message ecopoint.point.v1.CancelRewardRequest
+ */
+export class CancelRewardRequest extends Message<CancelRewardRequest> {
+  /**
+   * @generated from field: string transaction_id = 1;
+   */
+  transactionId = "";
+
+  /**
+   * "weight_mismatch" | "fraud_detected" | ...
+   *
+   * @generated from field: string reason = 2;
+   */
+  reason = "";
+
+  constructor(data?: PartialMessage<CancelRewardRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "ecopoint.point.v1.CancelRewardRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "transaction_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CancelRewardRequest {
+    return new CancelRewardRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CancelRewardRequest {
+    return new CancelRewardRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CancelRewardRequest {
+    return new CancelRewardRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CancelRewardRequest | PlainMessage<CancelRewardRequest> | undefined, b: CancelRewardRequest | PlainMessage<CancelRewardRequest> | undefined): boolean {
+    return proto3.util.equals(CancelRewardRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message ecopoint.point.v1.CancelRewardResponse
+ */
+export class CancelRewardResponse extends Message<CancelRewardResponse> {
+  /**
+   * @generated from field: ecopoint.point.v1.PointTransaction transaction = 1;
+   */
+  transaction?: PointTransaction;
+
+  /**
+   * @generated from field: int64 new_balance_pending = 2;
+   */
+  newBalancePending = protoInt64.zero;
+
+  constructor(data?: PartialMessage<CancelRewardResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "ecopoint.point.v1.CancelRewardResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "transaction", kind: "message", T: PointTransaction },
+    { no: 2, name: "new_balance_pending", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CancelRewardResponse {
+    return new CancelRewardResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CancelRewardResponse {
+    return new CancelRewardResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CancelRewardResponse {
+    return new CancelRewardResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CancelRewardResponse | PlainMessage<CancelRewardResponse> | undefined, b: CancelRewardResponse | PlainMessage<CancelRewardResponse> | undefined): boolean {
+    return proto3.util.equals(CancelRewardResponse, a, b);
   }
 }
 

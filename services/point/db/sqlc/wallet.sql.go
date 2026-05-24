@@ -11,12 +11,162 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const getTxByIdempotencyKey = `-- name: GetTxByIdempotencyKey :one
-SELECT id, user_id, tx_type, amount, balance_after, source, reference_id, idempotency_key, created_at
-FROM point_transactions
-WHERE idempotency_key = $1
+const addPending = `-- name: AddPending :one
+
+UPDATE wallets
+SET balance_pending = balance_pending + $2,
+    updated_at      = NOW()
+WHERE user_id = $1
+RETURNING user_id, balance_available, created_at, updated_at, balance_pending
 `
 
+type AddPendingParams struct {
+	UserID         pgtype.UUID `json:"user_id"`
+	BalancePending int64       `json:"balance_pending"`
+}
+
+// ============================================================
+//  2. IssuePendingReward — cộng vào balance_pending
+//     Driver chốt đơn → tạo điểm chờ Vựa xác nhận. Chưa khả dụng.
+//
+// ============================================================
+func (q *Queries) AddPending(ctx context.Context, arg AddPendingParams) (Wallet, error) {
+	row := q.db.QueryRow(ctx, addPending, arg.UserID, arg.BalancePending)
+	var i Wallet
+	err := row.Scan(
+		&i.UserID,
+		&i.BalanceAvailable,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.BalancePending,
+	)
+	return i, err
+}
+
+const cancelPendingBalance = `-- name: CancelPendingBalance :one
+
+UPDATE wallets
+SET balance_pending = balance_pending - $2,
+    updated_at      = NOW()
+WHERE user_id = $1 AND balance_pending >= $2
+RETURNING user_id, balance_available, created_at, updated_at, balance_pending
+`
+
+type CancelPendingBalanceParams struct {
+	UserID         pgtype.UUID `json:"user_id"`
+	BalancePending int64       `json:"balance_pending"`
+}
+
+// ============================================================
+// 4) CancelReward — pending → cancelled (Vựa phát hiện gian lận)
+// ============================================================
+func (q *Queries) CancelPendingBalance(ctx context.Context, arg CancelPendingBalanceParams) (Wallet, error) {
+	row := q.db.QueryRow(ctx, cancelPendingBalance, arg.UserID, arg.BalancePending)
+	var i Wallet
+	err := row.Scan(
+		&i.UserID,
+		&i.BalanceAvailable,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.BalancePending,
+	)
+	return i, err
+}
+
+const confirmPendingBalance = `-- name: ConfirmPendingBalance :one
+
+UPDATE wallets
+SET balance_pending   = balance_pending - $2,
+    balance_available = balance_available + $2,
+    updated_at        = NOW()
+WHERE user_id = $1 AND balance_pending >= $2
+RETURNING user_id, balance_available, created_at, updated_at, balance_pending
+`
+
+type ConfirmPendingBalanceParams struct {
+	UserID         pgtype.UUID `json:"user_id"`
+	BalancePending int64       `json:"balance_pending"`
+}
+
+// ============================================================
+// 3) ConfirmReward — pending → available (Vựa xác nhận nhập kho)
+// ============================================================
+// Trừ pending + cộng available CÙNG LÚC (atomic trong 1 UPDATE).
+func (q *Queries) ConfirmPendingBalance(ctx context.Context, arg ConfirmPendingBalanceParams) (Wallet, error) {
+	row := q.db.QueryRow(ctx, confirmPendingBalance, arg.UserID, arg.BalancePending)
+	var i Wallet
+	err := row.Scan(
+		&i.UserID,
+		&i.BalanceAvailable,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.BalancePending,
+	)
+	return i, err
+}
+
+const deductAvailable = `-- name: DeductAvailable :one
+
+UPDATE wallets
+SET balance_available = balance_available - $2,
+    updated_at        = NOW()
+WHERE user_id = $1 AND balance_available >= $2
+RETURNING user_id, balance_available, created_at, updated_at, balance_pending
+`
+
+type DeductAvailableParams struct {
+	UserID           pgtype.UUID `json:"user_id"`
+	BalanceAvailable int64       `json:"balance_available"`
+}
+
+// ============================================================
+//  1. DeductFee — trừ THẲNG balance_available
+//     Dùng cho: phí 20 EP của Vựa, redeem voucher, các loại phí
+//     platform khác. Tiền đã settle, không qua phase pending.
+//
+// ============================================================
+// Trừ available; trả 0 row nếu thiếu tiền → caller xử lý fail.
+func (q *Queries) DeductAvailable(ctx context.Context, arg DeductAvailableParams) (Wallet, error) {
+	row := q.db.QueryRow(ctx, deductAvailable, arg.UserID, arg.BalanceAvailable)
+	var i Wallet
+	err := row.Scan(
+		&i.UserID,
+		&i.BalanceAvailable,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.BalancePending,
+	)
+	return i, err
+}
+
+const getTxByID = `-- name: GetTxByID :one
+SELECT id, user_id, tx_type, amount, balance_after, source, reference_id, idempotency_key, created_at, status FROM point_transactions WHERE id = $1
+`
+
+func (q *Queries) GetTxByID(ctx context.Context, id pgtype.UUID) (PointTransaction, error) {
+	row := q.db.QueryRow(ctx, getTxByID, id)
+	var i PointTransaction
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.TxType,
+		&i.Amount,
+		&i.BalanceAfter,
+		&i.Source,
+		&i.ReferenceID,
+		&i.IdempotencyKey,
+		&i.CreatedAt,
+		&i.Status,
+	)
+	return i, err
+}
+
+const getTxByIdempotencyKey = `-- name: GetTxByIdempotencyKey :one
+
+SELECT id, user_id, tx_type, amount, balance_after, source, reference_id, idempotency_key, created_at, status FROM point_transactions WHERE idempotency_key = $1
+`
+
+// ─── Transaction helpers ──────────────────────────────────────
 func (q *Queries) GetTxByIdempotencyKey(ctx context.Context, idempotencyKey string) (PointTransaction, error) {
 	row := q.db.QueryRow(ctx, getTxByIdempotencyKey, idempotencyKey)
 	var i PointTransaction
@@ -30,34 +180,51 @@ func (q *Queries) GetTxByIdempotencyKey(ctx context.Context, idempotencyKey stri
 		&i.ReferenceID,
 		&i.IdempotencyKey,
 		&i.CreatedAt,
+		&i.Status,
 	)
 	return i, err
 }
 
-const insertPointTransaction = `-- name: InsertPointTransaction :one
-INSERT INTO point_transactions (
-    user_id, tx_type, amount, balance_after,
-    source, reference_id, idempotency_key
-) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
-)
-RETURNING id, user_id, tx_type, amount, balance_after, source, reference_id, idempotency_key, created_at
+const getWallet = `-- name: GetWallet :one
+SELECT user_id, balance_available, created_at, updated_at, balance_pending FROM wallets WHERE user_id = $1
 `
 
-type InsertPointTransactionParams struct {
-	UserID         pgtype.UUID    `json:"user_id"`
-	TxType         PointTxType    `json:"tx_type"`
-	Amount         pgtype.Numeric `json:"amount"`
-	BalanceAfter   pgtype.Numeric `json:"balance_after"`
-	Source         *string        `json:"source"`
-	ReferenceID    *string        `json:"reference_id"`
-	IdempotencyKey string         `json:"idempotency_key"`
+func (q *Queries) GetWallet(ctx context.Context, userID pgtype.UUID) (Wallet, error) {
+	row := q.db.QueryRow(ctx, getWallet, userID)
+	var i Wallet
+	err := row.Scan(
+		&i.UserID,
+		&i.BalanceAvailable,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.BalancePending,
+	)
+	return i, err
 }
 
-func (q *Queries) InsertPointTransaction(ctx context.Context, arg InsertPointTransactionParams) (PointTransaction, error) {
-	row := q.db.QueryRow(ctx, insertPointTransaction,
+const insertDeductFeeTx = `-- name: InsertDeductFeeTx :one
+INSERT INTO point_transactions (
+    user_id, tx_type, amount, balance_after,
+    source, reference_id, idempotency_key, status
+) VALUES (
+    $1, 'deduct', $2, $3,
+    $4, $5, $6, 'available'
+)
+RETURNING id, user_id, tx_type, amount, balance_after, source, reference_id, idempotency_key, created_at, status
+`
+
+type InsertDeductFeeTxParams struct {
+	UserID         pgtype.UUID `json:"user_id"`
+	Amount         int64       `json:"amount"`
+	BalanceAfter   int64       `json:"balance_after"`
+	Source         *string     `json:"source"`
+	ReferenceID    *string     `json:"reference_id"`
+	IdempotencyKey string      `json:"idempotency_key"`
+}
+
+func (q *Queries) InsertDeductFeeTx(ctx context.Context, arg InsertDeductFeeTxParams) (PointTransaction, error) {
+	row := q.db.QueryRow(ctx, insertDeductFeeTx,
 		arg.UserID,
-		arg.TxType,
 		arg.Amount,
 		arg.BalanceAfter,
 		arg.Source,
@@ -75,73 +242,148 @@ func (q *Queries) InsertPointTransaction(ctx context.Context, arg InsertPointTra
 		&i.ReferenceID,
 		&i.IdempotencyKey,
 		&i.CreatedAt,
+		&i.Status,
+	)
+	return i, err
+}
+
+const insertPendingRewardTx = `-- name: InsertPendingRewardTx :one
+INSERT INTO point_transactions (
+    user_id, tx_type, amount, balance_after,
+    source, reference_id, idempotency_key, status
+) VALUES (
+    $1, 'add', $2, $3,
+    $4, $5, $6, 'pending'
+)
+RETURNING id, user_id, tx_type, amount, balance_after, source, reference_id, idempotency_key, created_at, status
+`
+
+type InsertPendingRewardTxParams struct {
+	UserID         pgtype.UUID `json:"user_id"`
+	Amount         int64       `json:"amount"`
+	BalanceAfter   int64       `json:"balance_after"`
+	Source         *string     `json:"source"`
+	ReferenceID    *string     `json:"reference_id"`
+	IdempotencyKey string      `json:"idempotency_key"`
+}
+
+func (q *Queries) InsertPendingRewardTx(ctx context.Context, arg InsertPendingRewardTxParams) (PointTransaction, error) {
+	row := q.db.QueryRow(ctx, insertPendingRewardTx,
+		arg.UserID,
+		arg.Amount,
+		arg.BalanceAfter,
+		arg.Source,
+		arg.ReferenceID,
+		arg.IdempotencyKey,
+	)
+	var i PointTransaction
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.TxType,
+		&i.Amount,
+		&i.BalanceAfter,
+		&i.Source,
+		&i.ReferenceID,
+		&i.IdempotencyKey,
+		&i.CreatedAt,
+		&i.Status,
 	)
 	return i, err
 }
 
 const lockWallet = `-- name: LockWallet :one
-SELECT user_id, balance, created_at, updated_at
-FROM wallets
-WHERE user_id = $1
-FOR UPDATE
+SELECT user_id, balance_available, created_at, updated_at, balance_pending FROM wallets WHERE user_id = $1 FOR UPDATE
 `
 
-// Khóa hàng wallet để cập nhật số dư an toàn dưới transaction.
+// SELECT … FOR UPDATE — lock row trước khi cập nhật trong tx.
 func (q *Queries) LockWallet(ctx context.Context, userID pgtype.UUID) (Wallet, error) {
 	row := q.db.QueryRow(ctx, lockWallet, userID)
 	var i Wallet
 	err := row.Scan(
 		&i.UserID,
-		&i.Balance,
+		&i.BalanceAvailable,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.BalancePending,
 	)
 	return i, err
 }
 
-const updateBalance = `-- name: UpdateBalance :one
-UPDATE wallets
-SET balance    = $2,
-    updated_at = NOW()
-WHERE user_id = $1
-RETURNING user_id, balance, created_at, updated_at
+const markTxAvailable = `-- name: MarkTxAvailable :one
+UPDATE point_transactions
+SET status = 'available'
+WHERE id = $1 AND status = 'pending'
+RETURNING id, user_id, tx_type, amount, balance_after, source, reference_id, idempotency_key, created_at, status
 `
 
-type UpdateBalanceParams struct {
-	UserID  pgtype.UUID    `json:"user_id"`
-	Balance pgtype.Numeric `json:"balance"`
+func (q *Queries) MarkTxAvailable(ctx context.Context, id pgtype.UUID) (PointTransaction, error) {
+	row := q.db.QueryRow(ctx, markTxAvailable, id)
+	var i PointTransaction
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.TxType,
+		&i.Amount,
+		&i.BalanceAfter,
+		&i.Source,
+		&i.ReferenceID,
+		&i.IdempotencyKey,
+		&i.CreatedAt,
+		&i.Status,
+	)
+	return i, err
 }
 
-// Cập nhật số dư mới sau khi đã tính toán.
-func (q *Queries) UpdateBalance(ctx context.Context, arg UpdateBalanceParams) (Wallet, error) {
-	row := q.db.QueryRow(ctx, updateBalance, arg.UserID, arg.Balance)
-	var i Wallet
+const markTxCancelled = `-- name: MarkTxCancelled :one
+UPDATE point_transactions
+SET status = 'cancelled'
+WHERE id = $1 AND status = 'pending'
+RETURNING id, user_id, tx_type, amount, balance_after, source, reference_id, idempotency_key, created_at, status
+`
+
+func (q *Queries) MarkTxCancelled(ctx context.Context, id pgtype.UUID) (PointTransaction, error) {
+	row := q.db.QueryRow(ctx, markTxCancelled, id)
+	var i PointTransaction
 	err := row.Scan(
+		&i.ID,
 		&i.UserID,
-		&i.Balance,
+		&i.TxType,
+		&i.Amount,
+		&i.BalanceAfter,
+		&i.Source,
+		&i.ReferenceID,
+		&i.IdempotencyKey,
 		&i.CreatedAt,
-		&i.UpdatedAt,
+		&i.Status,
 	)
 	return i, err
 }
 
 const upsertWallet = `-- name: UpsertWallet :one
-INSERT INTO wallets (user_id, balance)
-VALUES ($1, 0)
+
+
+INSERT INTO wallets (user_id, balance_available, balance_pending)
+VALUES ($1, 0, 0)
 ON CONFLICT (user_id) DO UPDATE
     SET user_id = wallets.user_id
-RETURNING user_id, balance, created_at, updated_at
+RETURNING user_id, balance_available, created_at, updated_at, balance_pending
 `
 
-// Tạo wallet nếu chưa có (idempotent).
+// ============================================================
+// Point Service queries — V1.3 Two-Phase Ledger (int64)
+// ============================================================
+// ─── Wallet helpers ───────────────────────────────────────────
+// Tạo ví rỗng nếu chưa có (idempotent).
 func (q *Queries) UpsertWallet(ctx context.Context, userID pgtype.UUID) (Wallet, error) {
 	row := q.db.QueryRow(ctx, upsertWallet, userID)
 	var i Wallet
 	err := row.Scan(
 		&i.UserID,
-		&i.Balance,
+		&i.BalanceAvailable,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.BalancePending,
 	)
 	return i, err
 }

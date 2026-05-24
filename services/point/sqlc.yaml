@@ -1,7 +1,11 @@
 version: "2"
 sql:
   - engine: postgresql
-    schema: db/migrations
+    # Explicit ordered list — KHÔNG include *.down.sql vì sqlc đọc tuần tự
+    # sẽ rollback virtual schema.
+    schema:
+      - "db/migrations/001_schema.sql"
+      - "db/migrations/002_ecopoint_v1_3_upgrade.up.sql"
     queries: db/queries
     gen:
       go:

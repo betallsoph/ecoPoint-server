@@ -57,17 +57,19 @@ type PointTransaction struct {
 	ID             pgtype.UUID        `json:"id"`
 	UserID         pgtype.UUID        `json:"user_id"`
 	TxType         PointTxType        `json:"tx_type"`
-	Amount         pgtype.Numeric     `json:"amount"`
-	BalanceAfter   pgtype.Numeric     `json:"balance_after"`
+	Amount         int64              `json:"amount"`
+	BalanceAfter   int64              `json:"balance_after"`
 	Source         *string            `json:"source"`
 	ReferenceID    *string            `json:"reference_id"`
 	IdempotencyKey string             `json:"idempotency_key"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	Status         string             `json:"status"`
 }
 
 type Wallet struct {
-	UserID    pgtype.UUID        `json:"user_id"`
-	Balance   pgtype.Numeric     `json:"balance"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	UserID           pgtype.UUID        `json:"user_id"`
+	BalanceAvailable int64              `json:"balance_available"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	BalancePending   int64              `json:"balance_pending"`
 }

@@ -19,17 +19,32 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PointService_AddPoints_FullMethodName    = "/ecopoint.point.v1.PointService/AddPoints"
-	PointService_DeductPoints_FullMethodName = "/ecopoint.point.v1.PointService/DeductPoints"
-	PointService_GetBalance_FullMethodName   = "/ecopoint.point.v1.PointService/GetBalance"
+	PointService_DeductFee_FullMethodName          = "/ecopoint.point.v1.PointService/DeductFee"
+	PointService_IssuePendingReward_FullMethodName = "/ecopoint.point.v1.PointService/IssuePendingReward"
+	PointService_ConfirmReward_FullMethodName      = "/ecopoint.point.v1.PointService/ConfirmReward"
+	PointService_CancelReward_FullMethodName       = "/ecopoint.point.v1.PointService/CancelReward"
+	PointService_GetBalance_FullMethodName         = "/ecopoint.point.v1.PointService/GetBalance"
 )
 
 // PointServiceClient is the client API for PointService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// PointService — V1.3 Two-Phase Ledger.
+// 1 EP = 100 VNĐ. Mọi cột tiền dùng int64 (không còn float / Decimal).
 type PointServiceClient interface {
-	AddPoints(ctx context.Context, in *AddPointsRequest, opts ...grpc.CallOption) (*AddPointsResponse, error)
-	DeductPoints(ctx context.Context, in *DeductPointsRequest, opts ...grpc.CallOption) (*DeductPointsResponse, error)
+	// Trừ thẳng quỹ khả dụng — dùng cho phí 20 EP của Vựa,
+	// redeem voucher, phí giao dịch B2B Phase 3.
+	DeductFee(ctx context.Context, in *DeductFeeRequest, opts ...grpc.CallOption) (*DeductFeeResponse, error)
+	// Driver chốt đơn → cộng điểm vào balance_pending,
+	// chưa khả dụng cho user đến khi Vựa Confirm.
+	IssuePendingReward(ctx context.Context, in *IssueRewardRequest, opts ...grpc.CallOption) (*IssueRewardResponse, error)
+	// Vựa xác nhận nhập kho → pending chuyển sang available.
+	ConfirmReward(ctx context.Context, in *ConfirmRewardRequest, opts ...grpc.CallOption) (*ConfirmRewardResponse, error)
+	// Vựa phát hiện gian lận / lệch cân > 10% → huỷ pending,
+	// trừ điểm khỏi balance_pending mà KHÔNG cộng vào available.
+	CancelReward(ctx context.Context, in *CancelRewardRequest, opts ...grpc.CallOption) (*CancelRewardResponse, error)
+	// Đọc số dư (cho UI / Gateway).
 	GetBalance(ctx context.Context, in *GetBalanceRequest, opts ...grpc.CallOption) (*GetBalanceResponse, error)
 }
 
@@ -41,20 +56,40 @@ func NewPointServiceClient(cc grpc.ClientConnInterface) PointServiceClient {
 	return &pointServiceClient{cc}
 }
 
-func (c *pointServiceClient) AddPoints(ctx context.Context, in *AddPointsRequest, opts ...grpc.CallOption) (*AddPointsResponse, error) {
+func (c *pointServiceClient) DeductFee(ctx context.Context, in *DeductFeeRequest, opts ...grpc.CallOption) (*DeductFeeResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(AddPointsResponse)
-	err := c.cc.Invoke(ctx, PointService_AddPoints_FullMethodName, in, out, cOpts...)
+	out := new(DeductFeeResponse)
+	err := c.cc.Invoke(ctx, PointService_DeductFee_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *pointServiceClient) DeductPoints(ctx context.Context, in *DeductPointsRequest, opts ...grpc.CallOption) (*DeductPointsResponse, error) {
+func (c *pointServiceClient) IssuePendingReward(ctx context.Context, in *IssueRewardRequest, opts ...grpc.CallOption) (*IssueRewardResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DeductPointsResponse)
-	err := c.cc.Invoke(ctx, PointService_DeductPoints_FullMethodName, in, out, cOpts...)
+	out := new(IssueRewardResponse)
+	err := c.cc.Invoke(ctx, PointService_IssuePendingReward_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pointServiceClient) ConfirmReward(ctx context.Context, in *ConfirmRewardRequest, opts ...grpc.CallOption) (*ConfirmRewardResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ConfirmRewardResponse)
+	err := c.cc.Invoke(ctx, PointService_ConfirmReward_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *pointServiceClient) CancelReward(ctx context.Context, in *CancelRewardRequest, opts ...grpc.CallOption) (*CancelRewardResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CancelRewardResponse)
+	err := c.cc.Invoke(ctx, PointService_CancelReward_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -74,9 +109,22 @@ func (c *pointServiceClient) GetBalance(ctx context.Context, in *GetBalanceReque
 // PointServiceServer is the server API for PointService service.
 // All implementations should embed UnimplementedPointServiceServer
 // for forward compatibility.
+//
+// PointService — V1.3 Two-Phase Ledger.
+// 1 EP = 100 VNĐ. Mọi cột tiền dùng int64 (không còn float / Decimal).
 type PointServiceServer interface {
-	AddPoints(context.Context, *AddPointsRequest) (*AddPointsResponse, error)
-	DeductPoints(context.Context, *DeductPointsRequest) (*DeductPointsResponse, error)
+	// Trừ thẳng quỹ khả dụng — dùng cho phí 20 EP của Vựa,
+	// redeem voucher, phí giao dịch B2B Phase 3.
+	DeductFee(context.Context, *DeductFeeRequest) (*DeductFeeResponse, error)
+	// Driver chốt đơn → cộng điểm vào balance_pending,
+	// chưa khả dụng cho user đến khi Vựa Confirm.
+	IssuePendingReward(context.Context, *IssueRewardRequest) (*IssueRewardResponse, error)
+	// Vựa xác nhận nhập kho → pending chuyển sang available.
+	ConfirmReward(context.Context, *ConfirmRewardRequest) (*ConfirmRewardResponse, error)
+	// Vựa phát hiện gian lận / lệch cân > 10% → huỷ pending,
+	// trừ điểm khỏi balance_pending mà KHÔNG cộng vào available.
+	CancelReward(context.Context, *CancelRewardRequest) (*CancelRewardResponse, error)
+	// Đọc số dư (cho UI / Gateway).
 	GetBalance(context.Context, *GetBalanceRequest) (*GetBalanceResponse, error)
 }
 
@@ -87,11 +135,17 @@ type PointServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedPointServiceServer struct{}
 
-func (UnimplementedPointServiceServer) AddPoints(context.Context, *AddPointsRequest) (*AddPointsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AddPoints not implemented")
+func (UnimplementedPointServiceServer) DeductFee(context.Context, *DeductFeeRequest) (*DeductFeeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeductFee not implemented")
 }
-func (UnimplementedPointServiceServer) DeductPoints(context.Context, *DeductPointsRequest) (*DeductPointsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeductPoints not implemented")
+func (UnimplementedPointServiceServer) IssuePendingReward(context.Context, *IssueRewardRequest) (*IssueRewardResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method IssuePendingReward not implemented")
+}
+func (UnimplementedPointServiceServer) ConfirmReward(context.Context, *ConfirmRewardRequest) (*ConfirmRewardResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ConfirmReward not implemented")
+}
+func (UnimplementedPointServiceServer) CancelReward(context.Context, *CancelRewardRequest) (*CancelRewardResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CancelReward not implemented")
 }
 func (UnimplementedPointServiceServer) GetBalance(context.Context, *GetBalanceRequest) (*GetBalanceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetBalance not implemented")
@@ -116,38 +170,74 @@ func RegisterPointServiceServer(s grpc.ServiceRegistrar, srv PointServiceServer)
 	s.RegisterService(&PointService_ServiceDesc, srv)
 }
 
-func _PointService_AddPoints_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AddPointsRequest)
+func _PointService_DeductFee_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeductFeeRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(PointServiceServer).AddPoints(ctx, in)
+		return srv.(PointServiceServer).DeductFee(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: PointService_AddPoints_FullMethodName,
+		FullMethod: PointService_DeductFee_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PointServiceServer).AddPoints(ctx, req.(*AddPointsRequest))
+		return srv.(PointServiceServer).DeductFee(ctx, req.(*DeductFeeRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _PointService_DeductPoints_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeductPointsRequest)
+func _PointService_IssuePendingReward_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(IssueRewardRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(PointServiceServer).DeductPoints(ctx, in)
+		return srv.(PointServiceServer).IssuePendingReward(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: PointService_DeductPoints_FullMethodName,
+		FullMethod: PointService_IssuePendingReward_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(PointServiceServer).DeductPoints(ctx, req.(*DeductPointsRequest))
+		return srv.(PointServiceServer).IssuePendingReward(ctx, req.(*IssueRewardRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PointService_ConfirmReward_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfirmRewardRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PointServiceServer).ConfirmReward(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PointService_ConfirmReward_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PointServiceServer).ConfirmReward(ctx, req.(*ConfirmRewardRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PointService_CancelReward_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CancelRewardRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PointServiceServer).CancelReward(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PointService_CancelReward_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PointServiceServer).CancelReward(ctx, req.(*CancelRewardRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -178,12 +268,20 @@ var PointService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*PointServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "AddPoints",
-			Handler:    _PointService_AddPoints_Handler,
+			MethodName: "DeductFee",
+			Handler:    _PointService_DeductFee_Handler,
 		},
 		{
-			MethodName: "DeductPoints",
-			Handler:    _PointService_DeductPoints_Handler,
+			MethodName: "IssuePendingReward",
+			Handler:    _PointService_IssuePendingReward_Handler,
+		},
+		{
+			MethodName: "ConfirmReward",
+			Handler:    _PointService_ConfirmReward_Handler,
+		},
+		{
+			MethodName: "CancelReward",
+			Handler:    _PointService_CancelReward_Handler,
 		},
 		{
 			MethodName: "GetBalance",

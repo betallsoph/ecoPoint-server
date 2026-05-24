@@ -2,7 +2,7 @@ import { ConnectError } from "@connectrpc/connect";
 import { GraphQLError } from "graphql";
 
 import { BookingStatus as PbBookingStatus, MaterialType as PbMaterialType } from "@proto/ecopoint/booking/v1/booking_pb.js";
-import { PointSource } from "@proto/ecopoint/point/v1/point_pb.js";
+// V1.3: PointSource enum removed — Point Service nhận `source` là string.
 import { Timestamp } from "@bufbuild/protobuf";
 import { UserRole } from "@proto/ecopoint/user/v1/user_pb.js";
 
@@ -165,7 +165,9 @@ export const resolvers = {
     myBalance: auth("USER", async (_p, _args, ctx) => {
       try {
         const res = await pointClient.getBalance({ userId: ctx.user.userId });
-        return res.balance?.value ?? "0";
+        // V1.3: trả về int64 (BigInt khi qua bufbuild/protobuf). Trả AVAILABLE
+        // cho UI; pending hiển thị riêng nếu cần (chưa wire UI).
+        return res.balanceAvailable.toString();
       } catch (err) {
         toGraphQLError(err, "get balance failed");
       }
@@ -357,16 +359,18 @@ export const resolvers = {
         },
       ) => {
         try {
-          const res = await pointClient.addPoints({
+          // V1.3: addPoint mutation giờ tạo PENDING reward (Vựa cần Confirm
+          // sau khi xác nhận nhập kho). Amount: string GraphQL → BigInt.
+          const res = await pointClient.issuePendingReward({
             userId: args.userId,
-            amount: { value: args.amount },
-            source: PointSource.BOOKING,
+            amount: BigInt(args.amount),
+            source: "booking_reward",
             referenceId: args.referenceId,
             idempotencyKey: args.idempotencyKey,
           });
           return {
             transactionId: res.transaction?.id ?? "",
-            newBalance: res.newBalance?.value ?? "0",
+            newBalance: res.newBalancePending.toString(),
           };
         } catch (err) {
           toGraphQLError(err, "add point failed");

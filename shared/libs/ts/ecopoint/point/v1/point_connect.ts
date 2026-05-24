@@ -3,34 +3,68 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddPointsRequest, AddPointsResponse, DeductPointsRequest, DeductPointsResponse, GetBalanceRequest, GetBalanceResponse } from "./point_pb.js";
+import { CancelRewardRequest, CancelRewardResponse, ConfirmRewardRequest, ConfirmRewardResponse, DeductFeeRequest, DeductFeeResponse, GetBalanceRequest, GetBalanceResponse, IssueRewardRequest, IssueRewardResponse } from "./point_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
+ * PointService — V1.3 Two-Phase Ledger.
+ * 1 EP = 100 VNĐ. Mọi cột tiền dùng int64 (không còn float / Decimal).
+ *
  * @generated from service ecopoint.point.v1.PointService
  */
 export const PointService = {
   typeName: "ecopoint.point.v1.PointService",
   methods: {
     /**
-     * @generated from rpc ecopoint.point.v1.PointService.AddPoints
+     * Trừ thẳng quỹ khả dụng — dùng cho phí 20 EP của Vựa,
+     * redeem voucher, phí giao dịch B2B Phase 3.
+     *
+     * @generated from rpc ecopoint.point.v1.PointService.DeductFee
      */
-    addPoints: {
-      name: "AddPoints",
-      I: AddPointsRequest,
-      O: AddPointsResponse,
+    deductFee: {
+      name: "DeductFee",
+      I: DeductFeeRequest,
+      O: DeductFeeResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * @generated from rpc ecopoint.point.v1.PointService.DeductPoints
+     * Driver chốt đơn → cộng điểm vào balance_pending,
+     * chưa khả dụng cho user đến khi Vựa Confirm.
+     *
+     * @generated from rpc ecopoint.point.v1.PointService.IssuePendingReward
      */
-    deductPoints: {
-      name: "DeductPoints",
-      I: DeductPointsRequest,
-      O: DeductPointsResponse,
+    issuePendingReward: {
+      name: "IssuePendingReward",
+      I: IssueRewardRequest,
+      O: IssueRewardResponse,
       kind: MethodKind.Unary,
     },
     /**
+     * Vựa xác nhận nhập kho → pending chuyển sang available.
+     *
+     * @generated from rpc ecopoint.point.v1.PointService.ConfirmReward
+     */
+    confirmReward: {
+      name: "ConfirmReward",
+      I: ConfirmRewardRequest,
+      O: ConfirmRewardResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Vựa phát hiện gian lận / lệch cân > 10% → huỷ pending,
+     * trừ điểm khỏi balance_pending mà KHÔNG cộng vào available.
+     *
+     * @generated from rpc ecopoint.point.v1.PointService.CancelReward
+     */
+    cancelReward: {
+      name: "CancelReward",
+      I: CancelRewardRequest,
+      O: CancelRewardResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Đọc số dư (cho UI / Gateway).
+     *
      * @generated from rpc ecopoint.point.v1.PointService.GetBalance
      */
     getBalance: {
