@@ -4,6 +4,9 @@ export const typeDefs = /* GraphQL */ `
     CUSTOMER
     COLLECTOR
     ADMIN
+    USER
+    STATION_ADMIN
+    STATION_STAFF
   }
 
   enum BookingStatus {
@@ -12,6 +15,8 @@ export const typeDefs = /* GraphQL */ `
     COLLECTING
     COMPLETED
     CANCELLED
+    DELIVERED_TO_STATION
+    RECONCILED
   }
 
   enum MaterialType {
@@ -81,6 +86,30 @@ export const typeDefs = /* GraphQL */ `
     scheduledAt: String
     createdAt: String
     distanceM: Float
+    # V1.3 fields
+    stationId: String
+    pinCode: String
+    pinExpiredAt: String
+    driverWeight: Float
+    collectorWeight: Float
+    proofImageUrl: String
+  }
+
+  type AcceptBookingResult {
+    booking: Booking!
+    pointTxId: String!
+  }
+
+  type DriverCompleteResult {
+    booking: Booking!
+    userPointTxId: String!
+    driverPointTxId: String!
+  }
+
+  type VerifyBookingResult {
+    booking: Booking!
+    reconciled: Boolean!
+    deviationPct: Float!
   }
 
   input CreateBookingInput {
@@ -122,6 +151,21 @@ export const typeDefs = /* GraphQL */ `
     # Customer (auth)
     createBooking(input: CreateBookingInput!): Booking!
     redeemVoucher(voucherId: ID!, idempotencyKey: String!): RedeemResult!
+
+    # V1.3 Anti-Fraud flow
+    # STATION_ADMIN | STATION_STAFF — Vựa nhận đơn (trừ 20 EP phí).
+    collectorAcceptBooking(bookingId: ID!, stationId: ID!): AcceptBookingResult!
+
+    # USER (driver đăng nhập) — chốt tại nhà khách, nhập PIN của customer.
+    driverCompleteBooking(
+      bookingId: ID!
+      pinCode: String!
+      driverWeight: Float!
+      proofImageUrl: String!
+    ): DriverCompleteResult!
+
+    # STATION_ADMIN | STATION_STAFF — Vựa cân lại, thực thi Quyền Phủ Quyết.
+    collectorVerifyBooking(bookingId: ID!, collectorWeight: Float!): VerifyBookingResult!
 
     # Admin (auth + role)
     addPoint(

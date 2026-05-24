@@ -4,7 +4,13 @@ import { UserRole } from "@proto/ecopoint/user/v1/user_pb.js";
 
 import { userClient } from "./grpc-clients.js";
 
-export type Role = "CUSTOMER" | "COLLECTOR" | "ADMIN";
+export type Role =
+  | "CUSTOMER"
+  | "COLLECTOR"
+  | "ADMIN"
+  | "USER"
+  | "STATION_ADMIN"
+  | "STATION_STAFF";
 
 export interface AuthUser {
   userId: string;
@@ -22,6 +28,9 @@ const protoRoleToString: Record<UserRole, Role | "UNSPECIFIED"> = {
   [UserRole.CUSTOMER]: "CUSTOMER",
   [UserRole.COLLECTOR]: "COLLECTOR",
   [UserRole.ADMIN]: "ADMIN",
+  [UserRole.USER]: "USER",
+  [UserRole.STATION_ADMIN]: "STATION_ADMIN",
+  [UserRole.STATION_STAFF]: "STATION_STAFF",
 };
 
 function extractBearer(header: string | undefined): string | null {

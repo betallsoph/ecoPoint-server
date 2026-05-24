@@ -15,6 +15,9 @@ const roleToString: Record<UserRole, string> = {
   [UserRole.CUSTOMER]: "CUSTOMER",
   [UserRole.COLLECTOR]: "COLLECTOR",
   [UserRole.ADMIN]: "ADMIN",
+  [UserRole.USER]: "USER",
+  [UserRole.STATION_ADMIN]: "STATION_ADMIN",
+  [UserRole.STATION_STAFF]: "STATION_STAFF",
 };
 
 const bookingStatusToString: Record<PbBookingStatus, string> = {
@@ -87,6 +90,12 @@ function bookingToGraphQL(b: {
   scheduledAt?: Timestamp;
   createdAt?: Timestamp;
   distanceM: number;
+  stationId?: string;
+  pinCode?: string;
+  pinExpiredAt?: Timestamp;
+  driverWeight?: number;
+  collectorWeight?: number;
+  proofImageUrl?: string;
 }) {
   return {
     id: b.id,
@@ -102,6 +111,12 @@ function bookingToGraphQL(b: {
     scheduledAt: b.scheduledAt?.toDate().toISOString() ?? null,
     createdAt: b.createdAt?.toDate().toISOString() ?? null,
     distanceM: b.distanceM,
+    stationId: b.stationId || null,
+    pinCode: b.pinCode || null,
+    pinExpiredAt: b.pinExpiredAt?.toDate().toISOString() ?? null,
+    driverWeight: b.driverWeight ?? null,
+    collectorWeight: b.collectorWeight ?? null,
+    proofImageUrl: b.proofImageUrl || null,
   };
 }
 
@@ -347,6 +362,83 @@ export const resolvers = {
           };
         } catch (err) {
           toGraphQLError(err, "redeem failed");
+        }
+      },
+    ),
+
+    // ─── V1.3 Anti-Fraud Shield ────────────────────────────────
+    collectorAcceptBooking: auth(
+      "STATION",
+      async (_p, args: { bookingId: string; stationId: string }) => {
+        try {
+          const res = await bookingClient.collectorAcceptBooking({
+            bookingId: args.bookingId,
+            stationId: args.stationId,
+          });
+          if (!res.booking) throw new GraphQLError("missing booking");
+          return {
+            booking: bookingToGraphQL(res.booking),
+            pointTxId: res.pointTxId,
+          };
+        } catch (err) {
+          toGraphQLError(err, "accept booking failed");
+        }
+      },
+    ),
+
+    driverCompleteBooking: auth(
+      "USER",
+      async (
+        _p,
+        args: {
+          bookingId: string;
+          pinCode: string;
+          driverWeight: number;
+          proofImageUrl: string;
+        },
+        ctx,
+      ) => {
+        try {
+          const res = await bookingClient.driverCompleteBooking({
+            bookingId: args.bookingId,
+            driverId: ctx.user.userId, // Driver = user đang login
+            pinCode: args.pinCode,
+            driverWeight: args.driverWeight,
+            proofImageUrl: args.proofImageUrl,
+          });
+          if (!res.booking) throw new GraphQLError("missing booking");
+          return {
+            booking: bookingToGraphQL(res.booking),
+            userPointTxId: res.userPointTxId,
+            driverPointTxId: res.driverPointTxId,
+          };
+        } catch (err) {
+          toGraphQLError(err, "driver complete failed");
+        }
+      },
+    ),
+
+    collectorVerifyBooking: auth(
+      "STATION",
+      async (
+        _p,
+        args: { bookingId: string; collectorWeight: number },
+        ctx,
+      ) => {
+        try {
+          const res = await bookingClient.collectorVerifyBooking({
+            bookingId: args.bookingId,
+            collectorWeight: args.collectorWeight,
+            verifiedBy: ctx.user.userId,
+          });
+          if (!res.booking) throw new GraphQLError("missing booking");
+          return {
+            booking: bookingToGraphQL(res.booking),
+            reconciled: res.reconciled,
+            deviationPct: res.deviationPct,
+          };
+        } catch (err) {
+          toGraphQLError(err, "verify booking failed");
         }
       },
     ),

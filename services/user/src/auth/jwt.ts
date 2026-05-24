@@ -1,6 +1,12 @@
 import jwt, { type Algorithm, type JwtPayload, type SignOptions } from "jsonwebtoken";
 
-export type Role = "CUSTOMER" | "COLLECTOR" | "ADMIN";
+export type Role =
+  | "CUSTOMER"
+  | "COLLECTOR"
+  | "ADMIN"
+  | "USER"
+  | "STATION_ADMIN"
+  | "STATION_STAFF";
 
 export interface TokenPayload {
   userId: string;
@@ -33,7 +39,14 @@ if (!SECRET || SECRET.length < 32) {
   throw new Error("JWT_SECRET is required and must be at least 32 chars");
 }
 
-const ROLES: readonly Role[] = ["CUSTOMER", "COLLECTOR", "ADMIN"];
+const ROLES: readonly Role[] = [
+  "CUSTOMER",
+  "COLLECTOR",
+  "ADMIN",
+  "USER",
+  "STATION_ADMIN",
+  "STATION_STAFF",
+];
 
 function isRole(v: unknown): v is Role {
   return typeof v === "string" && (ROLES as readonly string[]).includes(v);

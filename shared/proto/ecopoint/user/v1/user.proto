@@ -33,9 +33,13 @@ message DeductTrustScoreResponse {
 
 enum UserRole {
   USER_ROLE_UNSPECIFIED = 0;
-  USER_ROLE_CUSTOMER = 1; // Người dân yêu cầu thu gom
-  USER_ROLE_COLLECTOR = 2; // Người thu gom ve chai
-  USER_ROLE_ADMIN = 3;
+  USER_ROLE_CUSTOMER = 1; // Người dân yêu cầu thu gom (legacy)
+  USER_ROLE_COLLECTOR = 2; // Driver freelance / Hero (legacy alias)
+  USER_ROLE_ADMIN = 3; // Platform admin
+  // V1.3:
+  USER_ROLE_USER = 4; // Khách hàng (rename customer)
+  USER_ROLE_STATION_ADMIN = 5; // Chủ Vựa
+  USER_ROLE_STATION_STAFF = 6; // Nhân viên Vựa
 }
 
 message User {

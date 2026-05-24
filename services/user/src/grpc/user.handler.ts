@@ -15,16 +15,25 @@ const dbRoleToProto: Record<UserRow["role"], UserRole> = {
   customer: UserRole.CUSTOMER,
   collector: UserRole.COLLECTOR,
   admin: UserRole.ADMIN,
+  user: UserRole.USER,
+  station_admin: UserRole.STATION_ADMIN,
+  station_staff: UserRole.STATION_STAFF,
 };
 const dbRoleToToken: Record<UserRow["role"], Role> = {
   customer: "CUSTOMER",
   collector: "COLLECTOR",
   admin: "ADMIN",
+  user: "USER",
+  station_admin: "STATION_ADMIN",
+  station_staff: "STATION_STAFF",
 };
 const tokenRoleToProto: Record<Role, UserRole> = {
   CUSTOMER: UserRole.CUSTOMER,
   COLLECTOR: UserRole.COLLECTOR,
   ADMIN: UserRole.ADMIN,
+  USER: UserRole.USER,
+  STATION_ADMIN: UserRole.STATION_ADMIN,
+  STATION_STAFF: UserRole.STATION_STAFF,
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

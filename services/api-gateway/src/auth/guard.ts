@@ -1,6 +1,6 @@
 import { GraphQLError, type GraphQLResolveInfo } from "graphql";
 
-import type { AuthUser, GraphQLContext } from "../context.js";
+import type { AuthUser, GraphQLContext, Role } from "../context.js";
 
 // ----- GraphQL errors chuẩn -----
 export class UnauthorizedError extends GraphQLError {
@@ -28,29 +28,46 @@ type Resolver<TArgs, TResult, TCtx> = (
   info: GraphQLResolveInfo,
 ) => TResult | Promise<TResult>;
 
+// ──────────────────────────────────────────────────────────────
+// RBAC spec — chấp nhận macro string hoặc Role[] tường minh.
+// ──────────────────────────────────────────────────────────────
+export type RoleSpec = "USER" | "ADMIN" | "STATION" | Role[];
+
+const macroToRoles: Record<Exclude<RoleSpec, Role[]>, Role[]> = {
+  // USER = bất kỳ user đã đăng nhập (mọi role hợp lệ).
+  USER: ["CUSTOMER", "COLLECTOR", "ADMIN", "USER", "STATION_ADMIN", "STATION_STAFF"],
+  // ADMIN = duy nhất platform admin.
+  ADMIN: ["ADMIN"],
+  // STATION = chủ Vựa hoặc nhân viên Vựa.
+  STATION: ["STATION_ADMIN", "STATION_STAFF"],
+};
+
+function allowedRoles(spec: RoleSpec): Role[] {
+  return Array.isArray(spec) ? spec : macroToRoles[spec];
+}
+
 /**
- * @auth — RBAC guard.
+ * @auth — RBAC guard. Chặn anonymous + check role.
  *
- *   - `auth("ADMIN", resolver)` → chỉ user có role ADMIN.
- *   - `auth("USER",  resolver)` → mọi user đã đăng nhập (CUSTOMER, COLLECTOR, ADMIN).
- *
- * Hành vi:
- *   - ctx.user == null               → throw 401 Unauthorized
- *   - role yêu cầu ADMIN mà user khác → throw 403 Forbidden
- *   - hợp lệ                          → resolver chạy với ctx narrow `AuthedContext`.
+ *   auth("USER",    fn)           → mọi user authenticated.
+ *   auth("ADMIN",   fn)           → chỉ ADMIN.
+ *   auth("STATION", fn)           → STATION_ADMIN | STATION_STAFF.
+ *   auth(["ADMIN", "STATION_ADMIN"], fn)  → list tường minh.
  */
 export function auth<TArgs = unknown, TResult = unknown>(
-  role: "ADMIN" | "USER",
+  spec: RoleSpec,
   resolver: Resolver<TArgs, TResult, AuthedContext>,
 ): Resolver<TArgs, TResult, GraphQLContext> {
+  const allowed = allowedRoles(spec);
   return (parent, args, ctx, info) => {
     if (!ctx.user) {
       throw new UnauthorizedError(ctx.authError ?? "Unauthorized");
     }
-    if (role === "ADMIN" && ctx.user.role !== "ADMIN") {
-      throw new ForbiddenError(`Forbidden: ADMIN only (have ${ctx.user.role})`);
+    if (!allowed.includes(ctx.user.role)) {
+      throw new ForbiddenError(
+        `Forbidden: role ${ctx.user.role} not in [${allowed.join(", ")}]`,
+      );
     }
-    // role === "USER" → any authenticated user passes.
     return resolver(parent, args, ctx as AuthedContext, info);
   };
 }

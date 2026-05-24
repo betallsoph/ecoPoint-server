@@ -15,23 +15,48 @@ export enum UserRole {
   UNSPECIFIED = 0,
 
   /**
-   * Người dân yêu cầu thu gom
+   * Người dân yêu cầu thu gom (legacy)
    *
    * @generated from enum value: USER_ROLE_CUSTOMER = 1;
    */
   CUSTOMER = 1,
 
   /**
-   * Người thu gom ve chai
+   * Driver freelance / Hero (legacy alias)
    *
    * @generated from enum value: USER_ROLE_COLLECTOR = 2;
    */
   COLLECTOR = 2,
 
   /**
+   * Platform admin
+   *
    * @generated from enum value: USER_ROLE_ADMIN = 3;
    */
   ADMIN = 3,
+
+  /**
+   * V1.3:
+   *
+   * Khách hàng (rename customer)
+   *
+   * @generated from enum value: USER_ROLE_USER = 4;
+   */
+  USER = 4,
+
+  /**
+   * Chủ Vựa
+   *
+   * @generated from enum value: USER_ROLE_STATION_ADMIN = 5;
+   */
+  STATION_ADMIN = 5,
+
+  /**
+   * Nhân viên Vựa
+   *
+   * @generated from enum value: USER_ROLE_STATION_STAFF = 6;
+   */
+  STATION_STAFF = 6,
 }
 // Retrieve enum metadata with: proto3.getEnumType(UserRole)
 proto3.util.setEnumType(UserRole, "ecopoint.user.v1.UserRole", [
@@ -39,6 +64,9 @@ proto3.util.setEnumType(UserRole, "ecopoint.user.v1.UserRole", [
   { no: 1, name: "USER_ROLE_CUSTOMER" },
   { no: 2, name: "USER_ROLE_COLLECTOR" },
   { no: 3, name: "USER_ROLE_ADMIN" },
+  { no: 4, name: "USER_ROLE_USER" },
+  { no: 5, name: "USER_ROLE_STATION_ADMIN" },
+  { no: 6, name: "USER_ROLE_STATION_STAFF" },
 ]);
 
 /**
