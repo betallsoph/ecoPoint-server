@@ -1,5 +1,6 @@
 import {
   boolean,
+  integer,
   pgEnum,
   pgTable,
   text,
@@ -24,6 +25,9 @@ export const users = pgTable("users", {
   fullName: varchar("full_name", { length: 255 }),
   avatarUrl: text("avatar_url"),
   isActive: boolean("is_active").notNull().default(true),
+
+  // V1.3 Trust Layer — bị trừ khi gian lận. Floor 0 enforce ở app + DB CHECK.
+  trustScore: integer("trust_score").notNull().default(100),
 
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

@@ -76,6 +76,162 @@ func (q *Queries) AcceptBookingByStation(ctx context.Context, arg AcceptBookingB
 	return i, err
 }
 
+const collectorVerifyCancelled = `-- name: CollectorVerifyCancelled :one
+UPDATE bookings
+SET collector_weight = $2,
+    status           = 'cancelled',
+    updated_at       = NOW()
+WHERE id = $1 AND status = 'delivered_to_station'
+RETURNING
+    id, customer_id, collector_id, status, address,
+    ST_X(location)::float8 AS longitude,
+    ST_Y(location)::float8 AS latitude,
+    estimated_kg, material_type, note, scheduled_at,
+    created_at, updated_at, station_id,
+    pin_code, pin_expired_at,
+    driver_weight, collector_weight, proof_image_url,
+    user_pending_tx_id, driver_pending_tx_id
+`
+
+type CollectorVerifyCancelledParams struct {
+	ID              pgtype.UUID    `json:"id"`
+	CollectorWeight pgtype.Numeric `json:"collector_weight"`
+}
+
+type CollectorVerifyCancelledRow struct {
+	ID                pgtype.UUID        `json:"id"`
+	CustomerID        pgtype.UUID        `json:"customer_id"`
+	CollectorID       pgtype.UUID        `json:"collector_id"`
+	Status            BookingStatus      `json:"status"`
+	Address           string             `json:"address"`
+	Longitude         float64            `json:"longitude"`
+	Latitude          float64            `json:"latitude"`
+	EstimatedKg       pgtype.Numeric     `json:"estimated_kg"`
+	MaterialType      MaterialType       `json:"material_type"`
+	Note              *string            `json:"note"`
+	ScheduledAt       pgtype.Timestamptz `json:"scheduled_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	StationID         pgtype.UUID        `json:"station_id"`
+	PinCode           *string            `json:"pin_code"`
+	PinExpiredAt      pgtype.Timestamptz `json:"pin_expired_at"`
+	DriverWeight      pgtype.Numeric     `json:"driver_weight"`
+	CollectorWeight   pgtype.Numeric     `json:"collector_weight"`
+	ProofImageUrl     *string            `json:"proof_image_url"`
+	UserPendingTxID   pgtype.UUID        `json:"user_pending_tx_id"`
+	DriverPendingTxID pgtype.UUID        `json:"driver_pending_tx_id"`
+}
+
+// Atomic: DELIVERED_TO_STATION → CANCELLED (gian lận).
+func (q *Queries) CollectorVerifyCancelled(ctx context.Context, arg CollectorVerifyCancelledParams) (CollectorVerifyCancelledRow, error) {
+	row := q.db.QueryRow(ctx, collectorVerifyCancelled, arg.ID, arg.CollectorWeight)
+	var i CollectorVerifyCancelledRow
+	err := row.Scan(
+		&i.ID,
+		&i.CustomerID,
+		&i.CollectorID,
+		&i.Status,
+		&i.Address,
+		&i.Longitude,
+		&i.Latitude,
+		&i.EstimatedKg,
+		&i.MaterialType,
+		&i.Note,
+		&i.ScheduledAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.StationID,
+		&i.PinCode,
+		&i.PinExpiredAt,
+		&i.DriverWeight,
+		&i.CollectorWeight,
+		&i.ProofImageUrl,
+		&i.UserPendingTxID,
+		&i.DriverPendingTxID,
+	)
+	return i, err
+}
+
+const collectorVerifyReconciled = `-- name: CollectorVerifyReconciled :one
+
+UPDATE bookings
+SET collector_weight = $2,
+    status           = 'reconciled',
+    updated_at       = NOW()
+WHERE id = $1 AND status = 'delivered_to_station'
+RETURNING
+    id, customer_id, collector_id, status, address,
+    ST_X(location)::float8 AS longitude,
+    ST_Y(location)::float8 AS latitude,
+    estimated_kg, material_type, note, scheduled_at,
+    created_at, updated_at, station_id,
+    pin_code, pin_expired_at,
+    driver_weight, collector_weight, proof_image_url,
+    user_pending_tx_id, driver_pending_tx_id
+`
+
+type CollectorVerifyReconciledParams struct {
+	ID              pgtype.UUID    `json:"id"`
+	CollectorWeight pgtype.Numeric `json:"collector_weight"`
+}
+
+type CollectorVerifyReconciledRow struct {
+	ID                pgtype.UUID        `json:"id"`
+	CustomerID        pgtype.UUID        `json:"customer_id"`
+	CollectorID       pgtype.UUID        `json:"collector_id"`
+	Status            BookingStatus      `json:"status"`
+	Address           string             `json:"address"`
+	Longitude         float64            `json:"longitude"`
+	Latitude          float64            `json:"latitude"`
+	EstimatedKg       pgtype.Numeric     `json:"estimated_kg"`
+	MaterialType      MaterialType       `json:"material_type"`
+	Note              *string            `json:"note"`
+	ScheduledAt       pgtype.Timestamptz `json:"scheduled_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	StationID         pgtype.UUID        `json:"station_id"`
+	PinCode           *string            `json:"pin_code"`
+	PinExpiredAt      pgtype.Timestamptz `json:"pin_expired_at"`
+	DriverWeight      pgtype.Numeric     `json:"driver_weight"`
+	CollectorWeight   pgtype.Numeric     `json:"collector_weight"`
+	ProofImageUrl     *string            `json:"proof_image_url"`
+	UserPendingTxID   pgtype.UUID        `json:"user_pending_tx_id"`
+	DriverPendingTxID pgtype.UUID        `json:"driver_pending_tx_id"`
+}
+
+// ============================================================
+// CollectorVerifyBooking — Vựa cân lại, đối chiếu, quyết
+// ============================================================
+// Atomic: DELIVERED_TO_STATION → RECONCILED, lưu collector_weight.
+func (q *Queries) CollectorVerifyReconciled(ctx context.Context, arg CollectorVerifyReconciledParams) (CollectorVerifyReconciledRow, error) {
+	row := q.db.QueryRow(ctx, collectorVerifyReconciled, arg.ID, arg.CollectorWeight)
+	var i CollectorVerifyReconciledRow
+	err := row.Scan(
+		&i.ID,
+		&i.CustomerID,
+		&i.CollectorID,
+		&i.Status,
+		&i.Address,
+		&i.Longitude,
+		&i.Latitude,
+		&i.EstimatedKg,
+		&i.MaterialType,
+		&i.Note,
+		&i.ScheduledAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.StationID,
+		&i.PinCode,
+		&i.PinExpiredAt,
+		&i.DriverWeight,
+		&i.CollectorWeight,
+		&i.ProofImageUrl,
+		&i.UserPendingTxID,
+		&i.DriverPendingTxID,
+	)
+	return i, err
+}
+
 const createBooking = `-- name: CreateBooking :one
 
 INSERT INTO bookings (
@@ -170,6 +326,105 @@ func (q *Queries) CreateBooking(ctx context.Context, arg CreateBookingParams) (C
 	return i, err
 }
 
+const driverCompleteBooking = `-- name: DriverCompleteBooking :one
+
+UPDATE bookings
+SET driver_weight    = $2,
+    proof_image_url  = $3,
+    collector_id     = $4,
+    status           = 'delivered_to_station',
+    updated_at       = NOW()
+WHERE id = $1
+  AND status = 'accepted'
+  AND pin_code = $5
+  AND pin_expired_at > NOW()
+RETURNING
+    id, customer_id, collector_id, status, address,
+    ST_X(location)::float8 AS longitude,
+    ST_Y(location)::float8 AS latitude,
+    estimated_kg, material_type, note, scheduled_at,
+    created_at, updated_at, station_id,
+    pin_code, pin_expired_at,
+    driver_weight, collector_weight, proof_image_url,
+    user_pending_tx_id, driver_pending_tx_id
+`
+
+type DriverCompleteBookingParams struct {
+	ID            pgtype.UUID    `json:"id"`
+	DriverWeight  pgtype.Numeric `json:"driver_weight"`
+	ProofImageUrl *string        `json:"proof_image_url"`
+	CollectorID   pgtype.UUID    `json:"collector_id"`
+	PinCode       *string        `json:"pin_code"`
+}
+
+type DriverCompleteBookingRow struct {
+	ID                pgtype.UUID        `json:"id"`
+	CustomerID        pgtype.UUID        `json:"customer_id"`
+	CollectorID       pgtype.UUID        `json:"collector_id"`
+	Status            BookingStatus      `json:"status"`
+	Address           string             `json:"address"`
+	Longitude         float64            `json:"longitude"`
+	Latitude          float64            `json:"latitude"`
+	EstimatedKg       pgtype.Numeric     `json:"estimated_kg"`
+	MaterialType      MaterialType       `json:"material_type"`
+	Note              *string            `json:"note"`
+	ScheduledAt       pgtype.Timestamptz `json:"scheduled_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	StationID         pgtype.UUID        `json:"station_id"`
+	PinCode           *string            `json:"pin_code"`
+	PinExpiredAt      pgtype.Timestamptz `json:"pin_expired_at"`
+	DriverWeight      pgtype.Numeric     `json:"driver_weight"`
+	CollectorWeight   pgtype.Numeric     `json:"collector_weight"`
+	ProofImageUrl     *string            `json:"proof_image_url"`
+	UserPendingTxID   pgtype.UUID        `json:"user_pending_tx_id"`
+	DriverPendingTxID pgtype.UUID        `json:"driver_pending_tx_id"`
+}
+
+// ============================================================
+// DriverCompleteBooking — atomic PIN + TTL check + state change
+// ============================================================
+// Chỉ chuyển ACCEPTED → DELIVERED_TO_STATION khi:
+//   - Booking thuộc trạng thái accepted
+//   - PIN khớp y hệt
+//   - pin_expired_at chưa quá hạn
+//
+// 0 row trả về = sai PIN / hết hạn / status sai → caller throw InvalidArgument.
+func (q *Queries) DriverCompleteBooking(ctx context.Context, arg DriverCompleteBookingParams) (DriverCompleteBookingRow, error) {
+	row := q.db.QueryRow(ctx, driverCompleteBooking,
+		arg.ID,
+		arg.DriverWeight,
+		arg.ProofImageUrl,
+		arg.CollectorID,
+		arg.PinCode,
+	)
+	var i DriverCompleteBookingRow
+	err := row.Scan(
+		&i.ID,
+		&i.CustomerID,
+		&i.CollectorID,
+		&i.Status,
+		&i.Address,
+		&i.Longitude,
+		&i.Latitude,
+		&i.EstimatedKg,
+		&i.MaterialType,
+		&i.Note,
+		&i.ScheduledAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.StationID,
+		&i.PinCode,
+		&i.PinExpiredAt,
+		&i.DriverWeight,
+		&i.CollectorWeight,
+		&i.ProofImageUrl,
+		&i.UserPendingTxID,
+		&i.DriverPendingTxID,
+	)
+	return i, err
+}
+
 const findNearestBookings = `-- name: FindNearestBookings :many
 SELECT
     id, customer_id, collector_id, status, address,
@@ -259,28 +514,35 @@ SELECT
     ST_Y(location)::float8 AS latitude,
     estimated_kg, material_type, note, scheduled_at,
     created_at, updated_at, station_id,
-    pin_code, pin_expired_at
+    pin_code, pin_expired_at,
+    driver_weight, collector_weight, proof_image_url,
+    user_pending_tx_id, driver_pending_tx_id
 FROM bookings
 WHERE id = $1
 `
 
 type GetBookingByIDRow struct {
-	ID           pgtype.UUID        `json:"id"`
-	CustomerID   pgtype.UUID        `json:"customer_id"`
-	CollectorID  pgtype.UUID        `json:"collector_id"`
-	Status       BookingStatus      `json:"status"`
-	Address      string             `json:"address"`
-	Longitude    float64            `json:"longitude"`
-	Latitude     float64            `json:"latitude"`
-	EstimatedKg  pgtype.Numeric     `json:"estimated_kg"`
-	MaterialType MaterialType       `json:"material_type"`
-	Note         *string            `json:"note"`
-	ScheduledAt  pgtype.Timestamptz `json:"scheduled_at"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
-	StationID    pgtype.UUID        `json:"station_id"`
-	PinCode      *string            `json:"pin_code"`
-	PinExpiredAt pgtype.Timestamptz `json:"pin_expired_at"`
+	ID                pgtype.UUID        `json:"id"`
+	CustomerID        pgtype.UUID        `json:"customer_id"`
+	CollectorID       pgtype.UUID        `json:"collector_id"`
+	Status            BookingStatus      `json:"status"`
+	Address           string             `json:"address"`
+	Longitude         float64            `json:"longitude"`
+	Latitude          float64            `json:"latitude"`
+	EstimatedKg       pgtype.Numeric     `json:"estimated_kg"`
+	MaterialType      MaterialType       `json:"material_type"`
+	Note              *string            `json:"note"`
+	ScheduledAt       pgtype.Timestamptz `json:"scheduled_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	StationID         pgtype.UUID        `json:"station_id"`
+	PinCode           *string            `json:"pin_code"`
+	PinExpiredAt      pgtype.Timestamptz `json:"pin_expired_at"`
+	DriverWeight      pgtype.Numeric     `json:"driver_weight"`
+	CollectorWeight   pgtype.Numeric     `json:"collector_weight"`
+	ProofImageUrl     *string            `json:"proof_image_url"`
+	UserPendingTxID   pgtype.UUID        `json:"user_pending_tx_id"`
+	DriverPendingTxID pgtype.UUID        `json:"driver_pending_tx_id"`
 }
 
 func (q *Queries) GetBookingByID(ctx context.Context, id pgtype.UUID) (GetBookingByIDRow, error) {
@@ -303,6 +565,11 @@ func (q *Queries) GetBookingByID(ctx context.Context, id pgtype.UUID) (GetBookin
 		&i.StationID,
 		&i.PinCode,
 		&i.PinExpiredAt,
+		&i.DriverWeight,
+		&i.CollectorWeight,
+		&i.ProofImageUrl,
+		&i.UserPendingTxID,
+		&i.DriverPendingTxID,
 	)
 	return i, err
 }
@@ -577,5 +844,41 @@ type RollbackBookingAcceptParams struct {
 // Hoàn về PENDING nếu DeductFee fail (compensation).
 func (q *Queries) RollbackBookingAccept(ctx context.Context, arg RollbackBookingAcceptParams) error {
 	_, err := q.db.Exec(ctx, rollbackBookingAccept, arg.ID, arg.StationID)
+	return err
+}
+
+const rollbackDriverComplete = `-- name: RollbackDriverComplete :exec
+UPDATE bookings
+SET driver_weight    = NULL,
+    proof_image_url  = NULL,
+    collector_id     = NULL,
+    status           = 'accepted',
+    updated_at       = NOW()
+WHERE id = $1 AND status = 'delivered_to_station'
+`
+
+// Hoàn về ACCEPTED nếu IssuePendingReward fail.
+func (q *Queries) RollbackDriverComplete(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, rollbackDriverComplete, id)
+	return err
+}
+
+const setBookingPendingTxIds = `-- name: SetBookingPendingTxIds :exec
+UPDATE bookings
+SET user_pending_tx_id   = $2,
+    driver_pending_tx_id = $3,
+    updated_at           = NOW()
+WHERE id = $1
+`
+
+type SetBookingPendingTxIdsParams struct {
+	ID                pgtype.UUID `json:"id"`
+	UserPendingTxID   pgtype.UUID `json:"user_pending_tx_id"`
+	DriverPendingTxID pgtype.UUID `json:"driver_pending_tx_id"`
+}
+
+// Lưu tx_id của 2 IssuePendingReward để CollectorVerifyBooking dùng sau.
+func (q *Queries) SetBookingPendingTxIds(ctx context.Context, arg SetBookingPendingTxIdsParams) error {
+	_, err := q.db.Exec(ctx, setBookingPendingTxIds, arg.ID, arg.UserPendingTxID, arg.DriverPendingTxID)
 	return err
 }

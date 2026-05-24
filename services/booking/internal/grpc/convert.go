@@ -115,9 +115,12 @@ type bookingFields struct {
 	UpdatedAt    pgtype.Timestamptz
 	DistanceM    float64 // 0 nếu không phải nearest
 	// V1.3 fields
-	StationID    pgtype.UUID
-	PinCode      *string
-	PinExpiredAt pgtype.Timestamptz
+	StationID       pgtype.UUID
+	PinCode         *string
+	PinExpiredAt    pgtype.Timestamptz
+	DriverWeight    pgtype.Numeric
+	CollectorWeight pgtype.Numeric
+	ProofImageURL   *string
 }
 
 func toProtoBooking(b bookingFields) *bookingv1.Booking {
@@ -136,8 +139,11 @@ func toProtoBooking(b bookingFields) *bookingv1.Booking {
 		CreatedAt:    pgTimestampPB(b.CreatedAt),
 		UpdatedAt:    pgTimestampPB(b.UpdatedAt),
 		DistanceM:    b.DistanceM,
-		StationId:    fromPgUUID(b.StationID),
-		PinCode:      derefString(b.PinCode),
-		PinExpiredAt: pgTimestampPB(b.PinExpiredAt),
+		StationId:       fromPgUUID(b.StationID),
+		PinCode:         derefString(b.PinCode),
+		PinExpiredAt:    pgTimestampPB(b.PinExpiredAt),
+		DriverWeight:    fromPgNumeric(b.DriverWeight).InexactFloat64(),
+		CollectorWeight: fromPgNumeric(b.CollectorWeight).InexactFloat64(),
+		ProofImageUrl:   derefString(b.ProofImageURL),
 	}
 }

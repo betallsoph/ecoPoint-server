@@ -13,6 +13,16 @@ service BookingService {
   // Fail (thiếu số dư) → trả lỗi, đơn vẫn PENDING.
   rpc CollectorAcceptBooking(CollectorAcceptBookingRequest) returns (CollectorAcceptBookingResponse);
 
+  // Driver chốt tại nhà khách: chụp ảnh cân + nhập PIN từ User. Server
+  // validate PIN + TTL, đổi status DELIVERED_TO_STATION, gọi
+  // Point.IssuePendingReward 2 lần (User + Driver).
+  rpc DriverCompleteBooking(DriverCompleteBookingRequest) returns (DriverCompleteBookingResponse);
+
+  // Vựa cân lại, thực thi Quyền Phủ Quyết (Master Doc §4.1):
+  //   |lệch| ≤ 10%  → RECONCILED, ConfirmReward cả 2.
+  //   |lệch| >  10% → CANCELLED, CancelReward + DeductTrustScore(20) cả 2.
+  rpc CollectorVerifyBooking(CollectorVerifyBookingRequest) returns (CollectorVerifyBookingResponse);
+
   rpc ListMyBookings(ListMyBookingsRequest) returns (ListBookingsResponse);
   rpc ListPendingNearby(ListPendingNearbyRequest) returns (ListBookingsResponse);
   rpc ListBookings(ListBookingsRequest) returns (ListBookingsResponse);
@@ -57,6 +67,9 @@ message Booking {
   string station_id = 15; // set khi >= ACCEPTED
   string pin_code = 16; // chỉ trả về cho customer khi CreateBooking
   google.protobuf.Timestamp pin_expired_at = 17;
+  double driver_weight = 18; // Driver chốt tại nhà khách
+  double collector_weight = 19; // Vựa cân lại
+  string proof_image_url = 20; // ảnh mặt cân điện tử
 }
 
 message CreateBookingRequest {
@@ -83,6 +96,33 @@ message CollectorAcceptBookingResponse {
   Booking booking = 1;
   // tx_id của DeductFee 20 EP — audit trail.
   string point_tx_id = 2;
+}
+
+message DriverCompleteBookingRequest {
+  string booking_id = 1;
+  string driver_id = 2;
+  string pin_code = 3;
+  string proof_image_url = 4;
+  double driver_weight = 5; // kg, có thể lẻ
+}
+
+message DriverCompleteBookingResponse {
+  Booking booking = 1;
+  // 2 tx pending: cấp điểm cho User (kg*10) + Driver (flat 20).
+  string user_point_tx_id = 2;
+  string driver_point_tx_id = 3;
+}
+
+message CollectorVerifyBookingRequest {
+  string booking_id = 1;
+  double collector_weight = 2;
+  string verified_by = 3; // station member user_id
+}
+
+message CollectorVerifyBookingResponse {
+  Booking booking = 1;
+  bool reconciled = 2; // true = pass, false = bị phạt
+  double deviation_pct = 3; // |collector - driver| / driver * 100
 }
 
 message ListMyBookingsRequest {

@@ -42,6 +42,92 @@ proto3.util.setEnumType(UserRole, "ecopoint.user.v1.UserRole", [
 ]);
 
 /**
+ * @generated from message ecopoint.user.v1.DeductTrustScoreRequest
+ */
+export class DeductTrustScoreRequest extends Message<DeductTrustScoreRequest> {
+  /**
+   * @generated from field: string user_id = 1;
+   */
+  userId = "";
+
+  /**
+   * @generated from field: int32 amount = 2;
+   */
+  amount = 0;
+
+  /**
+   * @generated from field: string reason = 3;
+   */
+  reason = "";
+
+  constructor(data?: PartialMessage<DeductTrustScoreRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "ecopoint.user.v1.DeductTrustScoreRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "amount", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeductTrustScoreRequest {
+    return new DeductTrustScoreRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeductTrustScoreRequest {
+    return new DeductTrustScoreRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeductTrustScoreRequest {
+    return new DeductTrustScoreRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeductTrustScoreRequest | PlainMessage<DeductTrustScoreRequest> | undefined, b: DeductTrustScoreRequest | PlainMessage<DeductTrustScoreRequest> | undefined): boolean {
+    return proto3.util.equals(DeductTrustScoreRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message ecopoint.user.v1.DeductTrustScoreResponse
+ */
+export class DeductTrustScoreResponse extends Message<DeductTrustScoreResponse> {
+  /**
+   * @generated from field: int32 new_trust_score = 1;
+   */
+  newTrustScore = 0;
+
+  constructor(data?: PartialMessage<DeductTrustScoreResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "ecopoint.user.v1.DeductTrustScoreResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "new_trust_score", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeductTrustScoreResponse {
+    return new DeductTrustScoreResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeductTrustScoreResponse {
+    return new DeductTrustScoreResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeductTrustScoreResponse {
+    return new DeductTrustScoreResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeductTrustScoreResponse | PlainMessage<DeductTrustScoreResponse> | undefined, b: DeductTrustScoreResponse | PlainMessage<DeductTrustScoreResponse> | undefined): boolean {
+    return proto3.util.equals(DeductTrustScoreResponse, a, b);
+  }
+}
+
+/**
  * @generated from message ecopoint.user.v1.User
  */
 export class User extends Message<User> {

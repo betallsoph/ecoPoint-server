@@ -12,6 +12,21 @@ service UserService {
 
   // ----- Profile -----
   rpc GetUserInfo(GetUserInfoRequest) returns (GetUserInfoResponse);
+
+  // ----- Trust Layer (V1.3 Anti-Fraud) -----
+  // Trừ trust_score, floor 0. Idempotency do caller tự đảm bảo
+  // (vd: chỉ gọi 1 lần khi booking chuyển sang CANCELLED).
+  rpc DeductTrustScore(DeductTrustScoreRequest) returns (DeductTrustScoreResponse);
+}
+
+message DeductTrustScoreRequest {
+  string user_id = 1;
+  int32 amount = 2;
+  string reason = 3;
+}
+
+message DeductTrustScoreResponse {
+  int32 new_trust_score = 1;
 }
 
 // ---------------- Domain ----------------

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"strings"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 
 	bookingv1 "github.com/ecopoint/ecopoint/shared/libs/go/ecopoint/booking/v1"
 	pointv1 "github.com/ecopoint/ecopoint/shared/libs/go/ecopoint/point/v1"
+	userv1 "github.com/ecopoint/ecopoint/shared/libs/go/ecopoint/user/v1"
 
 	bookingdb "github.com/ecopoint/ecopoint/services/booking/db/sqlc"
 )
@@ -30,23 +32,34 @@ const stationAcceptFeeEP int64 = 20
 // TTL của PIN do User cấp cho Driver — Master Doc §4.1.
 const pinTTL = 10 * time.Minute
 
+// Tỷ lệ điểm User nhận theo kg + flat điểm Driver — công thức tạm V1.3.
+const (
+	userRewardPerKg    int64 = 10
+	driverRewardFlat   int64 = 20
+	weightToleranceMax       = 0.10 // 10% — quá → CANCELLED + DeductTrustScore
+	trustPenalty       int32 = 20   // điểm trust bị trừ khi gian lận
+)
+
 type BookingServer struct {
 	bookingv1.UnimplementedBookingServiceServer
 	pool        *pgxpool.Pool
 	q           *bookingdb.Queries
 	pointClient pointv1.PointServiceClient
+	userClient  userv1.UserServiceClient
 	log         *slog.Logger
 }
 
 func NewBookingServer(
 	pool *pgxpool.Pool,
 	pointClient pointv1.PointServiceClient,
+	userClient userv1.UserServiceClient,
 	log *slog.Logger,
 ) *BookingServer {
 	return &BookingServer{
 		pool:        pool,
 		q:           bookingdb.New(pool),
 		pointClient: pointClient,
+		userClient:  userClient,
 		log:         log.With("component", "booking-server"),
 	}
 }
@@ -259,6 +272,312 @@ func (s *BookingServer) CollectorAcceptBooking(ctx context.Context, req *booking
 		}),
 		PointTxId: deductResp.GetTransaction().GetId(),
 	}, nil
+}
+
+// ============================================================
+// DriverCompleteBooking — tài xế chốt tại nhà khách.
+//
+// Validate PIN + TTL → đổi status DELIVERED_TO_STATION → gọi
+// Point.IssuePendingReward 2 lần (User reward = kg*10, Driver = 20 EP).
+// Lưu tx_id vào booking row để CollectorVerifyBooking dùng sau.
+//
+// Saga compensation: nếu 1 trong 2 IssuePendingReward fail thì rollback
+// booking về ACCEPTED + cancel pending tx đã tạo.
+// ============================================================
+func (s *BookingServer) DriverCompleteBooking(ctx context.Context, req *bookingv1.DriverCompleteBookingRequest) (*bookingv1.DriverCompleteBookingResponse, error) {
+	bookingID, err := uuid.Parse(req.GetBookingId())
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid booking_id: %v", err)
+	}
+	driverID, err := uuid.Parse(req.GetDriverId())
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid driver_id: %v", err)
+	}
+	pin := strings.TrimSpace(req.GetPinCode())
+	if len(pin) != 4 {
+		return nil, status.Error(codes.InvalidArgument, "pin_code must be 4 digits")
+	}
+	if req.GetDriverWeight() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "driver_weight must be positive")
+	}
+	proofURL := strings.TrimSpace(req.GetProofImageUrl())
+	if proofURL == "" {
+		return nil, status.Error(codes.InvalidArgument, "proof_image_url is required")
+	}
+
+	driverWeightKg := decimal.NewFromFloat(req.GetDriverWeight())
+
+	// ─── 1. Atomic PIN + TTL check → đổi status ──────────────
+	row, err := s.q.DriverCompleteBooking(ctx, bookingdb.DriverCompleteBookingParams{
+		ID:             toPgUUID(bookingID),
+		DriverWeight:   toPgNumeric(driverWeightKg),
+		ProofImageUrl:  ptrString(proofURL),
+		CollectorID:    toPgUUID(driverID),
+		PinCode:        ptrString(pin),
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Error(codes.InvalidArgument, "pin invalid, expired, or booking not in accepted state")
+		}
+		return nil, status.Errorf(codes.Internal, "complete booking: %v", err)
+	}
+
+	customerID := fromPgUUID(row.CustomerID)
+	userAmount := int64(req.GetDriverWeight()*float64(userRewardPerKg) + 0.5) // round
+	idemUser := fmt.Sprintf("driver-complete-user-%s", bookingID.String())
+	idemDriver := fmt.Sprintf("driver-complete-driver-%s", bookingID.String())
+
+	// ─── 2a. IssuePendingReward cho USER ────────────────────
+	userTx, err := s.pointClient.IssuePendingReward(ctx, &pointv1.IssueRewardRequest{
+		UserId:         customerID,
+		Amount:         userAmount,
+		Source:         "booking_reward_user",
+		ReferenceId:    bookingID.String(),
+		IdempotencyKey: idemUser,
+	})
+	if err != nil {
+		s.rollbackDriverComplete(ctx, bookingID, "", "", err.Error())
+		return nil, status.Errorf(codes.Internal, "issue user reward: %v", err)
+	}
+
+	// ─── 2b. IssuePendingReward cho DRIVER ──────────────────
+	driverTx, err := s.pointClient.IssuePendingReward(ctx, &pointv1.IssueRewardRequest{
+		UserId:         driverID.String(),
+		Amount:         driverRewardFlat,
+		Source:         "booking_reward_driver",
+		ReferenceId:    bookingID.String(),
+		IdempotencyKey: idemDriver,
+	})
+	if err != nil {
+		// Compensation: cancel user tx + rollback booking
+		s.rollbackDriverComplete(ctx, bookingID, userTx.GetTransaction().GetId(), "", err.Error())
+		return nil, status.Errorf(codes.Internal, "issue driver reward: %v", err)
+	}
+
+	// ─── 3. Persist tx_ids ──────────────────────────────────
+	userTxUUID, _ := uuid.Parse(userTx.GetTransaction().GetId())
+	driverTxUUID, _ := uuid.Parse(driverTx.GetTransaction().GetId())
+	if err := s.q.SetBookingPendingTxIds(ctx, bookingdb.SetBookingPendingTxIdsParams{
+		ID:                toPgUUID(bookingID),
+		UserPendingTxID:   toPgUUID(userTxUUID),
+		DriverPendingTxID: toPgUUID(driverTxUUID),
+	}); err != nil {
+		s.log.Error("SetBookingPendingTxIds failed — pending tx orphaned",
+			"booking_id", bookingID,
+			"user_tx", userTx.GetTransaction().GetId(),
+			"driver_tx", driverTx.GetTransaction().GetId(),
+			"err", err.Error(),
+		)
+		// Không rollback — pending tx đã settle, kệ; job reconcile sẽ link sau.
+	}
+
+	s.log.Info("DriverCompleteBooking ok",
+		"booking_id", bookingID, "driver_id", driverID,
+		"driver_weight_kg", req.GetDriverWeight(),
+		"user_amount", userAmount, "driver_amount", driverRewardFlat,
+	)
+
+	return &bookingv1.DriverCompleteBookingResponse{
+		Booking: toProtoBooking(bookingFields{
+			ID: row.ID, CustomerID: row.CustomerID, CollectorID: row.CollectorID,
+			Status: row.Status, Address: row.Address,
+			Longitude: row.Longitude, Latitude: row.Latitude,
+			EstimatedKg: row.EstimatedKg, MaterialType: row.MaterialType,
+			Note: row.Note, ScheduledAt: row.ScheduledAt,
+			CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
+			StationID: row.StationID, PinCode: nil, PinExpiredAt: row.PinExpiredAt,
+			DriverWeight:    row.DriverWeight,
+			CollectorWeight: row.CollectorWeight,
+			ProofImageURL:   row.ProofImageUrl,
+		}),
+		UserPointTxId:   userTx.GetTransaction().GetId(),
+		DriverPointTxId: driverTx.GetTransaction().GetId(),
+	}, nil
+}
+
+func (s *BookingServer) rollbackDriverComplete(ctx context.Context, bookingID uuid.UUID, userTxID, driverTxID, cause string) {
+	compCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer cancel()
+
+	if userTxID != "" {
+		if _, err := s.pointClient.CancelReward(compCtx, &pointv1.CancelRewardRequest{
+			TransactionId: userTxID, Reason: "compensation_driver_complete_fail",
+		}); err != nil {
+			s.log.Error("compensation cancel user tx failed", "tx_id", userTxID, "err", err.Error())
+		}
+	}
+	if driverTxID != "" {
+		if _, err := s.pointClient.CancelReward(compCtx, &pointv1.CancelRewardRequest{
+			TransactionId: driverTxID, Reason: "compensation_driver_complete_fail",
+		}); err != nil {
+			s.log.Error("compensation cancel driver tx failed", "tx_id", driverTxID, "err", err.Error())
+		}
+	}
+
+	if err := s.q.RollbackDriverComplete(compCtx, toPgUUID(bookingID)); err != nil {
+		s.log.Error("compensation rollback booking failed",
+			"booking_id", bookingID, "cause", cause, "err", err.Error(),
+		)
+	} else {
+		s.log.Warn("DriverCompleteBooking compensated", "booking_id", bookingID, "cause", cause)
+	}
+}
+
+// ============================================================
+// CollectorVerifyBooking — Vựa cân lại, thực thi Quyền Phủ Quyết.
+//
+//	|collector_weight − driver_weight| / driver_weight ≤ 10%
+//	  → RECONCILED + ConfirmReward 2 tx pending.
+//	  > 10%
+//	  → CANCELLED + CancelReward 2 tx pending + DeductTrustScore(20)
+//	    cho cả User lẫn Driver.
+// ============================================================
+func (s *BookingServer) CollectorVerifyBooking(ctx context.Context, req *bookingv1.CollectorVerifyBookingRequest) (*bookingv1.CollectorVerifyBookingResponse, error) {
+	bookingID, err := uuid.Parse(req.GetBookingId())
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid booking_id: %v", err)
+	}
+	if req.GetCollectorWeight() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "collector_weight must be positive")
+	}
+
+	// Pre-check: lấy booking để biết driver_weight + tx_ids.
+	pre, err := s.q.GetBookingByID(ctx, toPgUUID(bookingID))
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Error(codes.NotFound, "booking not found")
+		}
+		return nil, status.Errorf(codes.Internal, "lookup booking: %v", err)
+	}
+	if pre.Status != bookingdb.BookingStatusDeliveredToStation {
+		return nil, status.Errorf(codes.FailedPrecondition,
+			"booking status=%q is not delivered_to_station", pre.Status)
+	}
+	driverWeight := fromPgNumeric(pre.DriverWeight).InexactFloat64()
+	if driverWeight <= 0 {
+		return nil, status.Error(codes.FailedPrecondition, "driver_weight is missing")
+	}
+
+	collectorWeight := req.GetCollectorWeight()
+	deviation := math.Abs(collectorWeight-driverWeight) / driverWeight
+	deviationPct := deviation * 100
+
+	userTxID := fromPgUUID(pre.UserPendingTxID)
+	driverTxID := fromPgUUID(pre.DriverPendingTxID)
+
+	if deviation <= weightToleranceMax {
+		// ─── PASS: Reconciled + Confirm 2 tx ─────────────────
+		row, err := s.q.CollectorVerifyReconciled(ctx, bookingdb.CollectorVerifyReconciledParams{
+			ID:              toPgUUID(bookingID),
+			CollectorWeight: toPgNumeric(decimal.NewFromFloat(collectorWeight)),
+		})
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, status.Error(codes.FailedPrecondition, "booking no longer in delivered_to_station")
+			}
+			return nil, status.Errorf(codes.Internal, "reconcile failed: %v", err)
+		}
+
+		s.confirmReward(ctx, userTxID, req.GetVerifiedBy())
+		s.confirmReward(ctx, driverTxID, req.GetVerifiedBy())
+
+		s.log.Info("CollectorVerifyBooking RECONCILED",
+			"booking_id", bookingID, "deviation_pct", deviationPct,
+			"driver_w", driverWeight, "collector_w", collectorWeight,
+		)
+		return &bookingv1.CollectorVerifyBookingResponse{
+			Booking: toProtoBooking(bookingFields{
+				ID: row.ID, CustomerID: row.CustomerID, CollectorID: row.CollectorID,
+				Status: row.Status, Address: row.Address,
+				Longitude: row.Longitude, Latitude: row.Latitude,
+				EstimatedKg: row.EstimatedKg, MaterialType: row.MaterialType,
+				Note: row.Note, ScheduledAt: row.ScheduledAt,
+				CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
+				StationID: row.StationID, PinCode: nil, PinExpiredAt: row.PinExpiredAt,
+				DriverWeight: row.DriverWeight, CollectorWeight: row.CollectorWeight,
+				ProofImageURL: row.ProofImageUrl,
+			}),
+			Reconciled:   true,
+			DeviationPct: deviationPct,
+		}, nil
+	}
+
+	// ─── FAIL: Cancel + Trust Score penalty ────────────────────
+	row, err := s.q.CollectorVerifyCancelled(ctx, bookingdb.CollectorVerifyCancelledParams{
+		ID:              toPgUUID(bookingID),
+		CollectorWeight: toPgNumeric(decimal.NewFromFloat(collectorWeight)),
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Error(codes.FailedPrecondition, "booking no longer in delivered_to_station")
+		}
+		return nil, status.Errorf(codes.Internal, "cancel failed: %v", err)
+	}
+
+	s.cancelReward(ctx, userTxID, "weight_mismatch")
+	s.cancelReward(ctx, driverTxID, "weight_mismatch")
+
+	// Trừ trust score cả USER + DRIVER (chỉ caller "thắng" UPDATE WHERE
+	// status='delivered_to_station' mới chạm tới đây → idempotent natural).
+	customerID := fromPgUUID(pre.CustomerID)
+	driverID := fromPgUUID(pre.CollectorID)
+	s.deductTrust(ctx, customerID, "weight_mismatch_customer")
+	if driverID != customerID && driverID != "00000000-0000-0000-0000-000000000000" {
+		s.deductTrust(ctx, driverID, "weight_mismatch_driver")
+	}
+
+	s.log.Warn("CollectorVerifyBooking CANCELLED (fraud)",
+		"booking_id", bookingID, "deviation_pct", deviationPct,
+		"driver_w", driverWeight, "collector_w", collectorWeight,
+	)
+	return &bookingv1.CollectorVerifyBookingResponse{
+		Booking: toProtoBooking(bookingFields{
+			ID: row.ID, CustomerID: row.CustomerID, CollectorID: row.CollectorID,
+			Status: row.Status, Address: row.Address,
+			Longitude: row.Longitude, Latitude: row.Latitude,
+			EstimatedKg: row.EstimatedKg, MaterialType: row.MaterialType,
+			Note: row.Note, ScheduledAt: row.ScheduledAt,
+			CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
+			StationID: row.StationID, PinCode: nil, PinExpiredAt: row.PinExpiredAt,
+			DriverWeight: row.DriverWeight, CollectorWeight: row.CollectorWeight,
+			ProofImageURL: row.ProofImageUrl,
+		}),
+		Reconciled:   false,
+		DeviationPct: deviationPct,
+	}, nil
+}
+
+func (s *BookingServer) confirmReward(ctx context.Context, txID, by string) {
+	if txID == "" || txID == "00000000-0000-0000-0000-000000000000" {
+		return
+	}
+	if _, err := s.pointClient.ConfirmReward(ctx, &pointv1.ConfirmRewardRequest{
+		TransactionId: txID, ConfirmedBy: by,
+	}); err != nil {
+		s.log.Error("ConfirmReward failed", "tx_id", txID, "err", err.Error())
+	}
+}
+
+func (s *BookingServer) cancelReward(ctx context.Context, txID, reason string) {
+	if txID == "" || txID == "00000000-0000-0000-0000-000000000000" {
+		return
+	}
+	if _, err := s.pointClient.CancelReward(ctx, &pointv1.CancelRewardRequest{
+		TransactionId: txID, Reason: reason,
+	}); err != nil {
+		s.log.Error("CancelReward failed", "tx_id", txID, "err", err.Error())
+	}
+}
+
+func (s *BookingServer) deductTrust(ctx context.Context, userID, reason string) {
+	if userID == "" || userID == "00000000-0000-0000-0000-000000000000" {
+		return
+	}
+	if _, err := s.userClient.DeductTrustScore(ctx, &userv1.DeductTrustScoreRequest{
+		UserId: userID, Amount: trustPenalty, Reason: reason,
+	}); err != nil {
+		s.log.Error("DeductTrustScore failed", "user_id", userID, "err", err.Error())
+	}
 }
 
 // ============================================================

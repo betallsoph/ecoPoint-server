@@ -19,10 +19,11 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	UserService_Register_FullMethodName      = "/ecopoint.user.v1.UserService/Register"
-	UserService_Login_FullMethodName         = "/ecopoint.user.v1.UserService/Login"
-	UserService_ValidateToken_FullMethodName = "/ecopoint.user.v1.UserService/ValidateToken"
-	UserService_GetUserInfo_FullMethodName   = "/ecopoint.user.v1.UserService/GetUserInfo"
+	UserService_Register_FullMethodName         = "/ecopoint.user.v1.UserService/Register"
+	UserService_Login_FullMethodName            = "/ecopoint.user.v1.UserService/Login"
+	UserService_ValidateToken_FullMethodName    = "/ecopoint.user.v1.UserService/ValidateToken"
+	UserService_GetUserInfo_FullMethodName      = "/ecopoint.user.v1.UserService/GetUserInfo"
+	UserService_DeductTrustScore_FullMethodName = "/ecopoint.user.v1.UserService/DeductTrustScore"
 )
 
 // UserServiceClient is the client API for UserService service.
@@ -35,6 +36,10 @@ type UserServiceClient interface {
 	ValidateToken(ctx context.Context, in *ValidateTokenRequest, opts ...grpc.CallOption) (*ValidateTokenResponse, error)
 	// ----- Profile -----
 	GetUserInfo(ctx context.Context, in *GetUserInfoRequest, opts ...grpc.CallOption) (*GetUserInfoResponse, error)
+	// ----- Trust Layer (V1.3 Anti-Fraud) -----
+	// Trừ trust_score, floor 0. Idempotency do caller tự đảm bảo
+	// (vd: chỉ gọi 1 lần khi booking chuyển sang CANCELLED).
+	DeductTrustScore(ctx context.Context, in *DeductTrustScoreRequest, opts ...grpc.CallOption) (*DeductTrustScoreResponse, error)
 }
 
 type userServiceClient struct {
@@ -85,6 +90,16 @@ func (c *userServiceClient) GetUserInfo(ctx context.Context, in *GetUserInfoRequ
 	return out, nil
 }
 
+func (c *userServiceClient) DeductTrustScore(ctx context.Context, in *DeductTrustScoreRequest, opts ...grpc.CallOption) (*DeductTrustScoreResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeductTrustScoreResponse)
+	err := c.cc.Invoke(ctx, UserService_DeductTrustScore_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UserServiceServer is the server API for UserService service.
 // All implementations should embed UnimplementedUserServiceServer
 // for forward compatibility.
@@ -95,6 +110,10 @@ type UserServiceServer interface {
 	ValidateToken(context.Context, *ValidateTokenRequest) (*ValidateTokenResponse, error)
 	// ----- Profile -----
 	GetUserInfo(context.Context, *GetUserInfoRequest) (*GetUserInfoResponse, error)
+	// ----- Trust Layer (V1.3 Anti-Fraud) -----
+	// Trừ trust_score, floor 0. Idempotency do caller tự đảm bảo
+	// (vd: chỉ gọi 1 lần khi booking chuyển sang CANCELLED).
+	DeductTrustScore(context.Context, *DeductTrustScoreRequest) (*DeductTrustScoreResponse, error)
 }
 
 // UnimplementedUserServiceServer should be embedded to have
@@ -115,6 +134,9 @@ func (UnimplementedUserServiceServer) ValidateToken(context.Context, *ValidateTo
 }
 func (UnimplementedUserServiceServer) GetUserInfo(context.Context, *GetUserInfoRequest) (*GetUserInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetUserInfo not implemented")
+}
+func (UnimplementedUserServiceServer) DeductTrustScore(context.Context, *DeductTrustScoreRequest) (*DeductTrustScoreResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeductTrustScore not implemented")
 }
 func (UnimplementedUserServiceServer) testEmbeddedByValue() {}
 
@@ -208,6 +230,24 @@ func _UserService_GetUserInfo_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserService_DeductTrustScore_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeductTrustScoreRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).DeductTrustScore(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_DeductTrustScore_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).DeductTrustScore(ctx, req.(*DeductTrustScoreRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // UserService_ServiceDesc is the grpc.ServiceDesc for UserService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -230,6 +270,10 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetUserInfo",
 			Handler:    _UserService_GetUserInfo_Handler,
+		},
+		{
+			MethodName: "DeductTrustScore",
+			Handler:    _UserService_DeductTrustScore_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -1,6 +1,6 @@
 import { Timestamp } from "@bufbuild/protobuf";
 import { Code, ConnectError, type ConnectRouter } from "@connectrpc/connect";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { UserService } from "@proto/ecopoint/user/v1/user_connect.js";
 import { UserRole } from "@proto/ecopoint/user/v1/user_pb.js";
@@ -202,6 +202,41 @@ export const registerUserService = (router: ConnectRouter) =>
         if (err instanceof ConnectError) throw err;
         console.error("[user-service] getUserInfo failed:", err);
         throw new ConnectError("internal error", Code.Internal);
+      }
+    },
+
+    // -------------------- DeductTrustScore --------------------
+    async deductTrustScore({ userId, amount, reason }) {
+      if (!userId) {
+        throw new ConnectError("user_id is required", Code.InvalidArgument);
+      }
+      if (amount <= 0) {
+        throw new ConnectError("amount must be positive", Code.InvalidArgument);
+      }
+      try {
+        // Atomic UPDATE với GREATEST(0, …) — DB floor 0 luôn, không cần read-modify-write.
+        const [row] = await db
+          .update(schema.users)
+          .set({
+            trustScore: sql`GREATEST(0, ${schema.users.trustScore} - ${amount})`,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.users.id, userId))
+          .returning({ trustScore: schema.users.trustScore });
+        if (!row) {
+          throw new ConnectError(`user not found: ${userId}`, Code.NotFound);
+        }
+        console.warn("[user-service] trust score deducted", {
+          userId,
+          amount,
+          reason,
+          newTrustScore: row.trustScore,
+        });
+        return { newTrustScore: row.trustScore };
+      } catch (err) {
+        if (err instanceof ConnectError) throw err;
+        console.error("[user-service] deductTrustScore failed:", err);
+        throw new ConnectError("deductTrustScore failed", Code.Internal);
       }
     },
   });

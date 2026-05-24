@@ -103,24 +103,26 @@ func (ns NullMaterialType) Value() (driver.Value, error) {
 }
 
 type Booking struct {
-	ID              pgtype.UUID        `json:"id"`
-	CustomerID      pgtype.UUID        `json:"customer_id"`
-	CollectorID     pgtype.UUID        `json:"collector_id"`
-	Status          BookingStatus      `json:"status"`
-	Address         string             `json:"address"`
-	Location        pgtype.Text        `json:"location"`
-	EstimatedKg     pgtype.Numeric     `json:"estimated_kg"`
-	MaterialType    MaterialType       `json:"material_type"`
-	Note            *string            `json:"note"`
-	ScheduledAt     pgtype.Timestamptz `json:"scheduled_at"`
-	CreatedAt       pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
-	PinCode         *string            `json:"pin_code"`
-	PinExpiredAt    pgtype.Timestamptz `json:"pin_expired_at"`
-	ProofImageUrl   *string            `json:"proof_image_url"`
-	DriverWeight    pgtype.Numeric     `json:"driver_weight"`
-	CollectorWeight pgtype.Numeric     `json:"collector_weight"`
-	StationID       pgtype.UUID        `json:"station_id"`
+	ID                pgtype.UUID        `json:"id"`
+	CustomerID        pgtype.UUID        `json:"customer_id"`
+	CollectorID       pgtype.UUID        `json:"collector_id"`
+	Status            BookingStatus      `json:"status"`
+	Address           string             `json:"address"`
+	Location          pgtype.Text        `json:"location"`
+	EstimatedKg       pgtype.Numeric     `json:"estimated_kg"`
+	MaterialType      MaterialType       `json:"material_type"`
+	Note              *string            `json:"note"`
+	ScheduledAt       pgtype.Timestamptz `json:"scheduled_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	PinCode           *string            `json:"pin_code"`
+	PinExpiredAt      pgtype.Timestamptz `json:"pin_expired_at"`
+	ProofImageUrl     *string            `json:"proof_image_url"`
+	DriverWeight      pgtype.Numeric     `json:"driver_weight"`
+	CollectorWeight   pgtype.Numeric     `json:"collector_weight"`
+	StationID         pgtype.UUID        `json:"station_id"`
+	UserPendingTxID   pgtype.UUID        `json:"user_pending_tx_id"`
+	DriverPendingTxID pgtype.UUID        `json:"driver_pending_tx_id"`
 }
 
 type Station struct {

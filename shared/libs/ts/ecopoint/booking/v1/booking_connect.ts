@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CollectorAcceptBookingRequest, CollectorAcceptBookingResponse, CreateBookingRequest, CreateBookingResponse, ListBookingsRequest, ListBookingsResponse, ListMyBookingsRequest, ListPendingNearbyRequest } from "./booking_pb.js";
+import { CollectorAcceptBookingRequest, CollectorAcceptBookingResponse, CollectorVerifyBookingRequest, CollectorVerifyBookingResponse, CreateBookingRequest, CreateBookingResponse, DriverCompleteBookingRequest, DriverCompleteBookingResponse, ListBookingsRequest, ListBookingsResponse, ListMyBookingsRequest, ListPendingNearbyRequest } from "./booking_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -33,6 +33,32 @@ export const BookingService = {
       name: "CollectorAcceptBooking",
       I: CollectorAcceptBookingRequest,
       O: CollectorAcceptBookingResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Driver chốt tại nhà khách: chụp ảnh cân + nhập PIN từ User. Server
+     * validate PIN + TTL, đổi status DELIVERED_TO_STATION, gọi
+     * Point.IssuePendingReward 2 lần (User + Driver).
+     *
+     * @generated from rpc ecopoint.booking.v1.BookingService.DriverCompleteBooking
+     */
+    driverCompleteBooking: {
+      name: "DriverCompleteBooking",
+      I: DriverCompleteBookingRequest,
+      O: DriverCompleteBookingResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Vựa cân lại, thực thi Quyền Phủ Quyết (Master Doc §4.1):
+     *   |lệch| ≤ 10%  → RECONCILED, ConfirmReward cả 2.
+     *   |lệch| >  10% → CANCELLED, CancelReward + DeductTrustScore(20) cả 2.
+     *
+     * @generated from rpc ecopoint.booking.v1.BookingService.CollectorVerifyBooking
+     */
+    collectorVerifyBooking: {
+      name: "CollectorVerifyBooking",
+      I: CollectorVerifyBookingRequest,
+      O: CollectorVerifyBookingResponse,
       kind: MethodKind.Unary,
     },
     /**

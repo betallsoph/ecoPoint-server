@@ -21,6 +21,8 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	BookingService_CreateBooking_FullMethodName          = "/ecopoint.booking.v1.BookingService/CreateBooking"
 	BookingService_CollectorAcceptBooking_FullMethodName = "/ecopoint.booking.v1.BookingService/CollectorAcceptBooking"
+	BookingService_DriverCompleteBooking_FullMethodName  = "/ecopoint.booking.v1.BookingService/DriverCompleteBooking"
+	BookingService_CollectorVerifyBooking_FullMethodName = "/ecopoint.booking.v1.BookingService/CollectorVerifyBooking"
 	BookingService_ListMyBookings_FullMethodName         = "/ecopoint.booking.v1.BookingService/ListMyBookings"
 	BookingService_ListPendingNearby_FullMethodName      = "/ecopoint.booking.v1.BookingService/ListPendingNearby"
 	BookingService_ListBookings_FullMethodName           = "/ecopoint.booking.v1.BookingService/ListBookings"
@@ -35,6 +37,15 @@ type BookingServiceClient interface {
 	// Vựa (Station) nhận đơn → service tự gọi Point.DeductFee 20 EP.
 	// Fail (thiếu số dư) → trả lỗi, đơn vẫn PENDING.
 	CollectorAcceptBooking(ctx context.Context, in *CollectorAcceptBookingRequest, opts ...grpc.CallOption) (*CollectorAcceptBookingResponse, error)
+	// Driver chốt tại nhà khách: chụp ảnh cân + nhập PIN từ User. Server
+	// validate PIN + TTL, đổi status DELIVERED_TO_STATION, gọi
+	// Point.IssuePendingReward 2 lần (User + Driver).
+	DriverCompleteBooking(ctx context.Context, in *DriverCompleteBookingRequest, opts ...grpc.CallOption) (*DriverCompleteBookingResponse, error)
+	// Vựa cân lại, thực thi Quyền Phủ Quyết (Master Doc §4.1):
+	//
+	//	|lệch| ≤ 10%  → RECONCILED, ConfirmReward cả 2.
+	//	|lệch| >  10% → CANCELLED, CancelReward + DeductTrustScore(20) cả 2.
+	CollectorVerifyBooking(ctx context.Context, in *CollectorVerifyBookingRequest, opts ...grpc.CallOption) (*CollectorVerifyBookingResponse, error)
 	ListMyBookings(ctx context.Context, in *ListMyBookingsRequest, opts ...grpc.CallOption) (*ListBookingsResponse, error)
 	ListPendingNearby(ctx context.Context, in *ListPendingNearbyRequest, opts ...grpc.CallOption) (*ListBookingsResponse, error)
 	ListBookings(ctx context.Context, in *ListBookingsRequest, opts ...grpc.CallOption) (*ListBookingsResponse, error)
@@ -62,6 +73,26 @@ func (c *bookingServiceClient) CollectorAcceptBooking(ctx context.Context, in *C
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CollectorAcceptBookingResponse)
 	err := c.cc.Invoke(ctx, BookingService_CollectorAcceptBooking_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bookingServiceClient) DriverCompleteBooking(ctx context.Context, in *DriverCompleteBookingRequest, opts ...grpc.CallOption) (*DriverCompleteBookingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DriverCompleteBookingResponse)
+	err := c.cc.Invoke(ctx, BookingService_DriverCompleteBooking_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bookingServiceClient) CollectorVerifyBooking(ctx context.Context, in *CollectorVerifyBookingRequest, opts ...grpc.CallOption) (*CollectorVerifyBookingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CollectorVerifyBookingResponse)
+	err := c.cc.Invoke(ctx, BookingService_CollectorVerifyBooking_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -107,6 +138,15 @@ type BookingServiceServer interface {
 	// Vựa (Station) nhận đơn → service tự gọi Point.DeductFee 20 EP.
 	// Fail (thiếu số dư) → trả lỗi, đơn vẫn PENDING.
 	CollectorAcceptBooking(context.Context, *CollectorAcceptBookingRequest) (*CollectorAcceptBookingResponse, error)
+	// Driver chốt tại nhà khách: chụp ảnh cân + nhập PIN từ User. Server
+	// validate PIN + TTL, đổi status DELIVERED_TO_STATION, gọi
+	// Point.IssuePendingReward 2 lần (User + Driver).
+	DriverCompleteBooking(context.Context, *DriverCompleteBookingRequest) (*DriverCompleteBookingResponse, error)
+	// Vựa cân lại, thực thi Quyền Phủ Quyết (Master Doc §4.1):
+	//
+	//	|lệch| ≤ 10%  → RECONCILED, ConfirmReward cả 2.
+	//	|lệch| >  10% → CANCELLED, CancelReward + DeductTrustScore(20) cả 2.
+	CollectorVerifyBooking(context.Context, *CollectorVerifyBookingRequest) (*CollectorVerifyBookingResponse, error)
 	ListMyBookings(context.Context, *ListMyBookingsRequest) (*ListBookingsResponse, error)
 	ListPendingNearby(context.Context, *ListPendingNearbyRequest) (*ListBookingsResponse, error)
 	ListBookings(context.Context, *ListBookingsRequest) (*ListBookingsResponse, error)
@@ -124,6 +164,12 @@ func (UnimplementedBookingServiceServer) CreateBooking(context.Context, *CreateB
 }
 func (UnimplementedBookingServiceServer) CollectorAcceptBooking(context.Context, *CollectorAcceptBookingRequest) (*CollectorAcceptBookingResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CollectorAcceptBooking not implemented")
+}
+func (UnimplementedBookingServiceServer) DriverCompleteBooking(context.Context, *DriverCompleteBookingRequest) (*DriverCompleteBookingResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DriverCompleteBooking not implemented")
+}
+func (UnimplementedBookingServiceServer) CollectorVerifyBooking(context.Context, *CollectorVerifyBookingRequest) (*CollectorVerifyBookingResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CollectorVerifyBooking not implemented")
 }
 func (UnimplementedBookingServiceServer) ListMyBookings(context.Context, *ListMyBookingsRequest) (*ListBookingsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListMyBookings not implemented")
@@ -186,6 +232,42 @@ func _BookingService_CollectorAcceptBooking_Handler(srv interface{}, ctx context
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BookingServiceServer).CollectorAcceptBooking(ctx, req.(*CollectorAcceptBookingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BookingService_DriverCompleteBooking_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DriverCompleteBookingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookingServiceServer).DriverCompleteBooking(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BookingService_DriverCompleteBooking_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookingServiceServer).DriverCompleteBooking(ctx, req.(*DriverCompleteBookingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BookingService_CollectorVerifyBooking_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CollectorVerifyBookingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookingServiceServer).CollectorVerifyBooking(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BookingService_CollectorVerifyBooking_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookingServiceServer).CollectorVerifyBooking(ctx, req.(*CollectorVerifyBookingRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -258,6 +340,14 @@ var BookingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CollectorAcceptBooking",
 			Handler:    _BookingService_CollectorAcceptBooking_Handler,
+		},
+		{
+			MethodName: "DriverCompleteBooking",
+			Handler:    _BookingService_DriverCompleteBooking_Handler,
+		},
+		{
+			MethodName: "CollectorVerifyBooking",
+			Handler:    _BookingService_CollectorVerifyBooking_Handler,
 		},
 		{
 			MethodName: "ListMyBookings",

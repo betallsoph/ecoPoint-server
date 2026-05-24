@@ -5,6 +5,7 @@ sql:
     schema:
       - "db/migrations/001_schema.sql"
       - "db/migrations/002_ecopoint_v1_3_upgrade.up.sql"
+      - "db/migrations/003_pending_tx_ids.up.sql"
     queries: db/queries
     gen:
       go:

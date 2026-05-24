@@ -16,6 +16,7 @@ import (
 
 	bookingv1 "github.com/ecopoint/ecopoint/shared/libs/go/ecopoint/booking/v1"
 	pointv1 "github.com/ecopoint/ecopoint/shared/libs/go/ecopoint/point/v1"
+	userv1 "github.com/ecopoint/ecopoint/shared/libs/go/ecopoint/user/v1"
 
 	grpcserver "github.com/ecopoint/ecopoint/services/booking/internal/grpc"
 )
@@ -48,6 +49,17 @@ func main() {
 	pointClient := pointv1.NewPointServiceClient(pointConn)
 	logger.Info("point service client ready", "addr", pointAddr)
 
+	// User Service client — dùng cho DeductTrustScore khi phát hiện gian lận.
+	userAddr := envOr("USER_SERVICE_ADDR", "localhost:50051")
+	userConn, err := grpc.NewClient(userAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		logger.Error("user client dial failed", "err", err.Error(), "addr", userAddr)
+		os.Exit(1)
+	}
+	defer userConn.Close()
+	userClient := userv1.NewUserServiceClient(userConn)
+	logger.Info("user service client ready", "addr", userAddr)
+
 	port := envOr("GRPC_PORT", "50052")
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
@@ -56,7 +68,7 @@ func main() {
 	}
 
 	srv := grpc.NewServer()
-	bookingv1.RegisterBookingServiceServer(srv, grpcserver.NewBookingServer(pool, pointClient, logger))
+	bookingv1.RegisterBookingServiceServer(srv, grpcserver.NewBookingServer(pool, pointClient, userClient, logger))
 	reflection.Register(srv)
 
 	go func() {

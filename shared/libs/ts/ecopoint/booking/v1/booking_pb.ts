@@ -197,6 +197,27 @@ export class Booking extends Message<Booking> {
    */
   pinExpiredAt?: Timestamp;
 
+  /**
+   * Driver chốt tại nhà khách
+   *
+   * @generated from field: double driver_weight = 18;
+   */
+  driverWeight = 0;
+
+  /**
+   * Vựa cân lại
+   *
+   * @generated from field: double collector_weight = 19;
+   */
+  collectorWeight = 0;
+
+  /**
+   * ảnh mặt cân điện tử
+   *
+   * @generated from field: string proof_image_url = 20;
+   */
+  proofImageUrl = "";
+
   constructor(data?: PartialMessage<Booking>) {
     super();
     proto3.util.initPartial(data, this);
@@ -222,6 +243,9 @@ export class Booking extends Message<Booking> {
     { no: 15, name: "station_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 16, name: "pin_code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 17, name: "pin_expired_at", kind: "message", T: Timestamp },
+    { no: 18, name: "driver_weight", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 19, name: "collector_weight", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 20, name: "proof_image_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Booking {
@@ -442,6 +466,224 @@ export class CollectorAcceptBookingResponse extends Message<CollectorAcceptBooki
 
   static equals(a: CollectorAcceptBookingResponse | PlainMessage<CollectorAcceptBookingResponse> | undefined, b: CollectorAcceptBookingResponse | PlainMessage<CollectorAcceptBookingResponse> | undefined): boolean {
     return proto3.util.equals(CollectorAcceptBookingResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message ecopoint.booking.v1.DriverCompleteBookingRequest
+ */
+export class DriverCompleteBookingRequest extends Message<DriverCompleteBookingRequest> {
+  /**
+   * @generated from field: string booking_id = 1;
+   */
+  bookingId = "";
+
+  /**
+   * @generated from field: string driver_id = 2;
+   */
+  driverId = "";
+
+  /**
+   * @generated from field: string pin_code = 3;
+   */
+  pinCode = "";
+
+  /**
+   * @generated from field: string proof_image_url = 4;
+   */
+  proofImageUrl = "";
+
+  /**
+   * kg, có thể lẻ
+   *
+   * @generated from field: double driver_weight = 5;
+   */
+  driverWeight = 0;
+
+  constructor(data?: PartialMessage<DriverCompleteBookingRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "ecopoint.booking.v1.DriverCompleteBookingRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "booking_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "driver_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "pin_code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "proof_image_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "driver_weight", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DriverCompleteBookingRequest {
+    return new DriverCompleteBookingRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DriverCompleteBookingRequest {
+    return new DriverCompleteBookingRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DriverCompleteBookingRequest {
+    return new DriverCompleteBookingRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DriverCompleteBookingRequest | PlainMessage<DriverCompleteBookingRequest> | undefined, b: DriverCompleteBookingRequest | PlainMessage<DriverCompleteBookingRequest> | undefined): boolean {
+    return proto3.util.equals(DriverCompleteBookingRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message ecopoint.booking.v1.DriverCompleteBookingResponse
+ */
+export class DriverCompleteBookingResponse extends Message<DriverCompleteBookingResponse> {
+  /**
+   * @generated from field: ecopoint.booking.v1.Booking booking = 1;
+   */
+  booking?: Booking;
+
+  /**
+   * 2 tx pending: cấp điểm cho User (kg*10) + Driver (flat 20).
+   *
+   * @generated from field: string user_point_tx_id = 2;
+   */
+  userPointTxId = "";
+
+  /**
+   * @generated from field: string driver_point_tx_id = 3;
+   */
+  driverPointTxId = "";
+
+  constructor(data?: PartialMessage<DriverCompleteBookingResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "ecopoint.booking.v1.DriverCompleteBookingResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "booking", kind: "message", T: Booking },
+    { no: 2, name: "user_point_tx_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "driver_point_tx_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DriverCompleteBookingResponse {
+    return new DriverCompleteBookingResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DriverCompleteBookingResponse {
+    return new DriverCompleteBookingResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DriverCompleteBookingResponse {
+    return new DriverCompleteBookingResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DriverCompleteBookingResponse | PlainMessage<DriverCompleteBookingResponse> | undefined, b: DriverCompleteBookingResponse | PlainMessage<DriverCompleteBookingResponse> | undefined): boolean {
+    return proto3.util.equals(DriverCompleteBookingResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message ecopoint.booking.v1.CollectorVerifyBookingRequest
+ */
+export class CollectorVerifyBookingRequest extends Message<CollectorVerifyBookingRequest> {
+  /**
+   * @generated from field: string booking_id = 1;
+   */
+  bookingId = "";
+
+  /**
+   * @generated from field: double collector_weight = 2;
+   */
+  collectorWeight = 0;
+
+  /**
+   * station member user_id
+   *
+   * @generated from field: string verified_by = 3;
+   */
+  verifiedBy = "";
+
+  constructor(data?: PartialMessage<CollectorVerifyBookingRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "ecopoint.booking.v1.CollectorVerifyBookingRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "booking_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "collector_weight", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 3, name: "verified_by", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CollectorVerifyBookingRequest {
+    return new CollectorVerifyBookingRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CollectorVerifyBookingRequest {
+    return new CollectorVerifyBookingRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CollectorVerifyBookingRequest {
+    return new CollectorVerifyBookingRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CollectorVerifyBookingRequest | PlainMessage<CollectorVerifyBookingRequest> | undefined, b: CollectorVerifyBookingRequest | PlainMessage<CollectorVerifyBookingRequest> | undefined): boolean {
+    return proto3.util.equals(CollectorVerifyBookingRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message ecopoint.booking.v1.CollectorVerifyBookingResponse
+ */
+export class CollectorVerifyBookingResponse extends Message<CollectorVerifyBookingResponse> {
+  /**
+   * @generated from field: ecopoint.booking.v1.Booking booking = 1;
+   */
+  booking?: Booking;
+
+  /**
+   * true = pass, false = bị phạt
+   *
+   * @generated from field: bool reconciled = 2;
+   */
+  reconciled = false;
+
+  /**
+   * |collector - driver| / driver * 100
+   *
+   * @generated from field: double deviation_pct = 3;
+   */
+  deviationPct = 0;
+
+  constructor(data?: PartialMessage<CollectorVerifyBookingResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "ecopoint.booking.v1.CollectorVerifyBookingResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "booking", kind: "message", T: Booking },
+    { no: 2, name: "reconciled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "deviation_pct", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CollectorVerifyBookingResponse {
+    return new CollectorVerifyBookingResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CollectorVerifyBookingResponse {
+    return new CollectorVerifyBookingResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CollectorVerifyBookingResponse {
+    return new CollectorVerifyBookingResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CollectorVerifyBookingResponse | PlainMessage<CollectorVerifyBookingResponse> | undefined, b: CollectorVerifyBookingResponse | PlainMessage<CollectorVerifyBookingResponse> | undefined): boolean {
+    return proto3.util.equals(CollectorVerifyBookingResponse, a, b);
   }
 }
 

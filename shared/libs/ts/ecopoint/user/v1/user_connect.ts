@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AuthResponse, GetUserInfoRequest, GetUserInfoResponse, LoginRequest, RegisterRequest, ValidateTokenRequest, ValidateTokenResponse } from "./user_pb.js";
+import { AuthResponse, DeductTrustScoreRequest, DeductTrustScoreResponse, GetUserInfoRequest, GetUserInfoResponse, LoginRequest, RegisterRequest, ValidateTokenRequest, ValidateTokenResponse } from "./user_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -50,6 +50,19 @@ export const UserService = {
       name: "GetUserInfo",
       I: GetUserInfoRequest,
       O: GetUserInfoResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * ----- Trust Layer (V1.3 Anti-Fraud) -----
+     * Trừ trust_score, floor 0. Idempotency do caller tự đảm bảo
+     * (vd: chỉ gọi 1 lần khi booking chuyển sang CANCELLED).
+     *
+     * @generated from rpc ecopoint.user.v1.UserService.DeductTrustScore
+     */
+    deductTrustScore: {
+      name: "DeductTrustScore",
+      I: DeductTrustScoreRequest,
+      O: DeductTrustScoreResponse,
       kind: MethodKind.Unary,
     },
   }
