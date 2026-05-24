@@ -11,29 +11,88 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createBooking = `-- name: CreateBooking :one
-INSERT INTO bookings (
-    customer_id, address, location, estimated_kg, material_type, note, scheduled_at
-) VALUES (
-    $1,
-    $2,
-    ST_SetSRID(ST_MakePoint($3, $4), 4326),
-    $5, $6, $7, $8
-)
+const acceptBookingByStation = `-- name: AcceptBookingByStation :one
+UPDATE bookings
+SET status     = 'accepted',
+    station_id = $2,
+    updated_at = NOW()
+WHERE id = $1 AND status = 'pending'
 RETURNING
-    id,
-    customer_id,
-    collector_id,
-    status,
-    address,
+    id, customer_id, collector_id, status, address,
     ST_X(location)::float8 AS longitude,
     ST_Y(location)::float8 AS latitude,
-    estimated_kg,
-    material_type,
-    note,
-    scheduled_at,
-    created_at,
-    updated_at
+    estimated_kg, material_type, note, scheduled_at,
+    created_at, updated_at, station_id,
+    pin_code, pin_expired_at
+`
+
+type AcceptBookingByStationParams struct {
+	ID        pgtype.UUID `json:"id"`
+	StationID pgtype.UUID `json:"station_id"`
+}
+
+type AcceptBookingByStationRow struct {
+	ID           pgtype.UUID        `json:"id"`
+	CustomerID   pgtype.UUID        `json:"customer_id"`
+	CollectorID  pgtype.UUID        `json:"collector_id"`
+	Status       BookingStatus      `json:"status"`
+	Address      string             `json:"address"`
+	Longitude    float64            `json:"longitude"`
+	Latitude     float64            `json:"latitude"`
+	EstimatedKg  pgtype.Numeric     `json:"estimated_kg"`
+	MaterialType MaterialType       `json:"material_type"`
+	Note         *string            `json:"note"`
+	ScheduledAt  pgtype.Timestamptz `json:"scheduled_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	StationID    pgtype.UUID        `json:"station_id"`
+	PinCode      *string            `json:"pin_code"`
+	PinExpiredAt pgtype.Timestamptz `json:"pin_expired_at"`
+}
+
+// Atomic reservation: chỉ chuyển PENDING → ACCEPTED khi chưa ai nhận
+// (chống race 2 Vựa cùng grab 1 đơn). 0 row → bookings không thay đổi.
+func (q *Queries) AcceptBookingByStation(ctx context.Context, arg AcceptBookingByStationParams) (AcceptBookingByStationRow, error) {
+	row := q.db.QueryRow(ctx, acceptBookingByStation, arg.ID, arg.StationID)
+	var i AcceptBookingByStationRow
+	err := row.Scan(
+		&i.ID,
+		&i.CustomerID,
+		&i.CollectorID,
+		&i.Status,
+		&i.Address,
+		&i.Longitude,
+		&i.Latitude,
+		&i.EstimatedKg,
+		&i.MaterialType,
+		&i.Note,
+		&i.ScheduledAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.StationID,
+		&i.PinCode,
+		&i.PinExpiredAt,
+	)
+	return i, err
+}
+
+const createBooking = `-- name: CreateBooking :one
+
+INSERT INTO bookings (
+    customer_id, address, location, estimated_kg, material_type,
+    note, scheduled_at, pin_code, pin_expired_at
+) VALUES (
+    $1, $2,
+    ST_SetSRID(ST_MakePoint($3, $4), 4326),
+    $5, $6, $7, $8, $9, $10
+)
+RETURNING
+    id, customer_id, collector_id, status, address,
+    ST_X(location)::float8 AS longitude,
+    ST_Y(location)::float8 AS latitude,
+    estimated_kg, material_type, note, scheduled_at,
+    created_at, updated_at, station_id,
+    pin_code, pin_expired_at
 `
 
 type CreateBookingParams struct {
@@ -45,6 +104,8 @@ type CreateBookingParams struct {
 	MaterialType  MaterialType       `json:"material_type"`
 	Note          *string            `json:"note"`
 	ScheduledAt   pgtype.Timestamptz `json:"scheduled_at"`
+	PinCode       *string            `json:"pin_code"`
+	PinExpiredAt  pgtype.Timestamptz `json:"pin_expired_at"`
 }
 
 type CreateBookingRow struct {
@@ -61,8 +122,19 @@ type CreateBookingRow struct {
 	ScheduledAt  pgtype.Timestamptz `json:"scheduled_at"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	StationID    pgtype.UUID        `json:"station_id"`
+	PinCode      *string            `json:"pin_code"`
+	PinExpiredAt pgtype.Timestamptz `json:"pin_expired_at"`
 }
 
+// ============================================================
+// Booking Service queries — V1.3
+// ============================================================
+// Tham số: customer_id, address, longitude, latitude, estimated_kg,
+//
+//	material_type, note, scheduled_at, pin_code, pin_expired_at.
+//
+// PIN 4-digit + TTL được generate ở app layer (crypto/rand).
 func (q *Queries) CreateBooking(ctx context.Context, arg CreateBookingParams) (CreateBookingRow, error) {
 	row := q.db.QueryRow(ctx, createBooking,
 		arg.CustomerID,
@@ -73,6 +145,8 @@ func (q *Queries) CreateBooking(ctx context.Context, arg CreateBookingParams) (C
 		arg.MaterialType,
 		arg.Note,
 		arg.ScheduledAt,
+		arg.PinCode,
+		arg.PinExpiredAt,
 	)
 	var i CreateBookingRow
 	err := row.Scan(
@@ -89,29 +163,25 @@ func (q *Queries) CreateBooking(ctx context.Context, arg CreateBookingParams) (C
 		&i.ScheduledAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.StationID,
+		&i.PinCode,
+		&i.PinExpiredAt,
 	)
 	return i, err
 }
 
 const findNearestBookings = `-- name: FindNearestBookings :many
 SELECT
-    id,
-    customer_id,
-    collector_id,
-    status,
-    address,
+    id, customer_id, collector_id, status, address,
     ST_X(location)::float8 AS longitude,
     ST_Y(location)::float8 AS latitude,
     ST_DistanceSphere(
         location,
         ST_SetSRID(ST_MakePoint($1, $2), 4326)
     )::float8 AS distance_m,
-    estimated_kg,
-    material_type,
-    note,
-    scheduled_at,
-    created_at,
-    updated_at
+    estimated_kg, material_type, note, scheduled_at,
+    created_at, updated_at, station_id,
+    pin_code, pin_expired_at
 FROM bookings
 WHERE status = 'pending'
 ORDER BY location <-> ST_SetSRID(ST_MakePoint($1, $2), 4326)
@@ -139,6 +209,9 @@ type FindNearestBookingsRow struct {
 	ScheduledAt  pgtype.Timestamptz `json:"scheduled_at"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	StationID    pgtype.UUID        `json:"station_id"`
+	PinCode      *string            `json:"pin_code"`
+	PinExpiredAt pgtype.Timestamptz `json:"pin_expired_at"`
 }
 
 func (q *Queries) FindNearestBookings(ctx context.Context, arg FindNearestBookingsParams) ([]FindNearestBookingsRow, error) {
@@ -165,6 +238,9 @@ func (q *Queries) FindNearestBookings(ctx context.Context, arg FindNearestBookin
 			&i.ScheduledAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.StationID,
+			&i.PinCode,
+			&i.PinExpiredAt,
 		); err != nil {
 			return nil, err
 		}
@@ -176,21 +252,102 @@ func (q *Queries) FindNearestBookings(ctx context.Context, arg FindNearestBookin
 	return items, nil
 }
 
-const listBookings = `-- name: ListBookings :many
+const getBookingByID = `-- name: GetBookingByID :one
 SELECT
-    id,
-    customer_id,
-    collector_id,
-    status,
-    address,
+    id, customer_id, collector_id, status, address,
     ST_X(location)::float8 AS longitude,
     ST_Y(location)::float8 AS latitude,
-    estimated_kg,
-    material_type,
-    note,
-    scheduled_at,
-    created_at,
-    updated_at
+    estimated_kg, material_type, note, scheduled_at,
+    created_at, updated_at, station_id,
+    pin_code, pin_expired_at
+FROM bookings
+WHERE id = $1
+`
+
+type GetBookingByIDRow struct {
+	ID           pgtype.UUID        `json:"id"`
+	CustomerID   pgtype.UUID        `json:"customer_id"`
+	CollectorID  pgtype.UUID        `json:"collector_id"`
+	Status       BookingStatus      `json:"status"`
+	Address      string             `json:"address"`
+	Longitude    float64            `json:"longitude"`
+	Latitude     float64            `json:"latitude"`
+	EstimatedKg  pgtype.Numeric     `json:"estimated_kg"`
+	MaterialType MaterialType       `json:"material_type"`
+	Note         *string            `json:"note"`
+	ScheduledAt  pgtype.Timestamptz `json:"scheduled_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	StationID    pgtype.UUID        `json:"station_id"`
+	PinCode      *string            `json:"pin_code"`
+	PinExpiredAt pgtype.Timestamptz `json:"pin_expired_at"`
+}
+
+func (q *Queries) GetBookingByID(ctx context.Context, id pgtype.UUID) (GetBookingByIDRow, error) {
+	row := q.db.QueryRow(ctx, getBookingByID, id)
+	var i GetBookingByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.CustomerID,
+		&i.CollectorID,
+		&i.Status,
+		&i.Address,
+		&i.Longitude,
+		&i.Latitude,
+		&i.EstimatedKg,
+		&i.MaterialType,
+		&i.Note,
+		&i.ScheduledAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.StationID,
+		&i.PinCode,
+		&i.PinExpiredAt,
+	)
+	return i, err
+}
+
+const getStation = `-- name: GetStation :one
+
+SELECT id, name, address, owner_id, is_active, created_at, updated_at
+FROM stations
+WHERE id = $1
+`
+
+type GetStationRow struct {
+	ID        pgtype.UUID        `json:"id"`
+	Name      string             `json:"name"`
+	Address   string             `json:"address"`
+	OwnerID   pgtype.UUID        `json:"owner_id"`
+	IsActive  bool               `json:"is_active"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+// ─── Station ──────────────────────────────────────────────────
+func (q *Queries) GetStation(ctx context.Context, id pgtype.UUID) (GetStationRow, error) {
+	row := q.db.QueryRow(ctx, getStation, id)
+	var i GetStationRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Address,
+		&i.OwnerID,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listBookings = `-- name: ListBookings :many
+SELECT
+    id, customer_id, collector_id, status, address,
+    ST_X(location)::float8 AS longitude,
+    ST_Y(location)::float8 AS latitude,
+    estimated_kg, material_type, note, scheduled_at,
+    created_at, updated_at, station_id,
+    pin_code, pin_expired_at
 FROM bookings
 ORDER BY created_at DESC
 LIMIT $1
@@ -210,6 +367,9 @@ type ListBookingsRow struct {
 	ScheduledAt  pgtype.Timestamptz `json:"scheduled_at"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	StationID    pgtype.UUID        `json:"station_id"`
+	PinCode      *string            `json:"pin_code"`
+	PinExpiredAt pgtype.Timestamptz `json:"pin_expired_at"`
 }
 
 func (q *Queries) ListBookings(ctx context.Context, limit int32) ([]ListBookingsRow, error) {
@@ -235,6 +395,9 @@ func (q *Queries) ListBookings(ctx context.Context, limit int32) ([]ListBookings
 			&i.ScheduledAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.StationID,
+			&i.PinCode,
+			&i.PinExpiredAt,
 		); err != nil {
 			return nil, err
 		}
@@ -248,19 +411,12 @@ func (q *Queries) ListBookings(ctx context.Context, limit int32) ([]ListBookings
 
 const listBookingsByStatus = `-- name: ListBookingsByStatus :many
 SELECT
-    id,
-    customer_id,
-    collector_id,
-    status,
-    address,
+    id, customer_id, collector_id, status, address,
     ST_X(location)::float8 AS longitude,
     ST_Y(location)::float8 AS latitude,
-    estimated_kg,
-    material_type,
-    note,
-    scheduled_at,
-    created_at,
-    updated_at
+    estimated_kg, material_type, note, scheduled_at,
+    created_at, updated_at, station_id,
+    pin_code, pin_expired_at
 FROM bookings
 WHERE status = $1
 ORDER BY created_at DESC
@@ -286,6 +442,9 @@ type ListBookingsByStatusRow struct {
 	ScheduledAt  pgtype.Timestamptz `json:"scheduled_at"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	StationID    pgtype.UUID        `json:"station_id"`
+	PinCode      *string            `json:"pin_code"`
+	PinExpiredAt pgtype.Timestamptz `json:"pin_expired_at"`
 }
 
 func (q *Queries) ListBookingsByStatus(ctx context.Context, arg ListBookingsByStatusParams) ([]ListBookingsByStatusRow, error) {
@@ -311,6 +470,9 @@ func (q *Queries) ListBookingsByStatus(ctx context.Context, arg ListBookingsBySt
 			&i.ScheduledAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.StationID,
+			&i.PinCode,
+			&i.PinExpiredAt,
 		); err != nil {
 			return nil, err
 		}
@@ -323,20 +485,14 @@ func (q *Queries) ListBookingsByStatus(ctx context.Context, arg ListBookingsBySt
 }
 
 const listMyBookings = `-- name: ListMyBookings :many
+
 SELECT
-    id,
-    customer_id,
-    collector_id,
-    status,
-    address,
+    id, customer_id, collector_id, status, address,
     ST_X(location)::float8 AS longitude,
     ST_Y(location)::float8 AS latitude,
-    estimated_kg,
-    material_type,
-    note,
-    scheduled_at,
-    created_at,
-    updated_at
+    estimated_kg, material_type, note, scheduled_at,
+    created_at, updated_at, station_id,
+    pin_code, pin_expired_at
 FROM bookings
 WHERE customer_id = $1
 ORDER BY created_at DESC
@@ -362,8 +518,12 @@ type ListMyBookingsRow struct {
 	ScheduledAt  pgtype.Timestamptz `json:"scheduled_at"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	StationID    pgtype.UUID        `json:"station_id"`
+	PinCode      *string            `json:"pin_code"`
+	PinExpiredAt pgtype.Timestamptz `json:"pin_expired_at"`
 }
 
+// ─── List queries (refresh RETURNING với cột mới) ─────────────
 func (q *Queries) ListMyBookings(ctx context.Context, arg ListMyBookingsParams) ([]ListMyBookingsRow, error) {
 	rows, err := q.db.Query(ctx, listMyBookings, arg.CustomerID, arg.Limit)
 	if err != nil {
@@ -387,6 +547,9 @@ func (q *Queries) ListMyBookings(ctx context.Context, arg ListMyBookingsParams) 
 			&i.ScheduledAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.StationID,
+			&i.PinCode,
+			&i.PinExpiredAt,
 		); err != nil {
 			return nil, err
 		}
@@ -396,4 +559,23 @@ func (q *Queries) ListMyBookings(ctx context.Context, arg ListMyBookingsParams) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const rollbackBookingAccept = `-- name: RollbackBookingAccept :exec
+UPDATE bookings
+SET status     = 'pending',
+    station_id = NULL,
+    updated_at = NOW()
+WHERE id = $1 AND status = 'accepted' AND station_id = $2
+`
+
+type RollbackBookingAcceptParams struct {
+	ID        pgtype.UUID `json:"id"`
+	StationID pgtype.UUID `json:"station_id"`
+}
+
+// Hoàn về PENDING nếu DeductFee fail (compensation).
+func (q *Queries) RollbackBookingAccept(ctx context.Context, arg RollbackBookingAcceptParams) error {
+	_, err := q.db.Exec(ctx, rollbackBookingAccept, arg.ID, arg.StationID)
+	return err
 }

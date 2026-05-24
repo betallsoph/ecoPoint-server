@@ -19,17 +19,22 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	BookingService_CreateBooking_FullMethodName     = "/ecopoint.booking.v1.BookingService/CreateBooking"
-	BookingService_ListMyBookings_FullMethodName    = "/ecopoint.booking.v1.BookingService/ListMyBookings"
-	BookingService_ListPendingNearby_FullMethodName = "/ecopoint.booking.v1.BookingService/ListPendingNearby"
-	BookingService_ListBookings_FullMethodName      = "/ecopoint.booking.v1.BookingService/ListBookings"
+	BookingService_CreateBooking_FullMethodName          = "/ecopoint.booking.v1.BookingService/CreateBooking"
+	BookingService_CollectorAcceptBooking_FullMethodName = "/ecopoint.booking.v1.BookingService/CollectorAcceptBooking"
+	BookingService_ListMyBookings_FullMethodName         = "/ecopoint.booking.v1.BookingService/ListMyBookings"
+	BookingService_ListPendingNearby_FullMethodName      = "/ecopoint.booking.v1.BookingService/ListPendingNearby"
+	BookingService_ListBookings_FullMethodName           = "/ecopoint.booking.v1.BookingService/ListBookings"
 )
 
 // BookingServiceClient is the client API for BookingService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type BookingServiceClient interface {
+	// User tạo đơn — server tự sinh PIN 4 số (TTL 10 phút) trả về cho mobile.
 	CreateBooking(ctx context.Context, in *CreateBookingRequest, opts ...grpc.CallOption) (*CreateBookingResponse, error)
+	// Vựa (Station) nhận đơn → service tự gọi Point.DeductFee 20 EP.
+	// Fail (thiếu số dư) → trả lỗi, đơn vẫn PENDING.
+	CollectorAcceptBooking(ctx context.Context, in *CollectorAcceptBookingRequest, opts ...grpc.CallOption) (*CollectorAcceptBookingResponse, error)
 	ListMyBookings(ctx context.Context, in *ListMyBookingsRequest, opts ...grpc.CallOption) (*ListBookingsResponse, error)
 	ListPendingNearby(ctx context.Context, in *ListPendingNearbyRequest, opts ...grpc.CallOption) (*ListBookingsResponse, error)
 	ListBookings(ctx context.Context, in *ListBookingsRequest, opts ...grpc.CallOption) (*ListBookingsResponse, error)
@@ -47,6 +52,16 @@ func (c *bookingServiceClient) CreateBooking(ctx context.Context, in *CreateBook
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CreateBookingResponse)
 	err := c.cc.Invoke(ctx, BookingService_CreateBooking_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *bookingServiceClient) CollectorAcceptBooking(ctx context.Context, in *CollectorAcceptBookingRequest, opts ...grpc.CallOption) (*CollectorAcceptBookingResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CollectorAcceptBookingResponse)
+	err := c.cc.Invoke(ctx, BookingService_CollectorAcceptBooking_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +102,11 @@ func (c *bookingServiceClient) ListBookings(ctx context.Context, in *ListBooking
 // All implementations should embed UnimplementedBookingServiceServer
 // for forward compatibility.
 type BookingServiceServer interface {
+	// User tạo đơn — server tự sinh PIN 4 số (TTL 10 phút) trả về cho mobile.
 	CreateBooking(context.Context, *CreateBookingRequest) (*CreateBookingResponse, error)
+	// Vựa (Station) nhận đơn → service tự gọi Point.DeductFee 20 EP.
+	// Fail (thiếu số dư) → trả lỗi, đơn vẫn PENDING.
+	CollectorAcceptBooking(context.Context, *CollectorAcceptBookingRequest) (*CollectorAcceptBookingResponse, error)
 	ListMyBookings(context.Context, *ListMyBookingsRequest) (*ListBookingsResponse, error)
 	ListPendingNearby(context.Context, *ListPendingNearbyRequest) (*ListBookingsResponse, error)
 	ListBookings(context.Context, *ListBookingsRequest) (*ListBookingsResponse, error)
@@ -102,6 +121,9 @@ type UnimplementedBookingServiceServer struct{}
 
 func (UnimplementedBookingServiceServer) CreateBooking(context.Context, *CreateBookingRequest) (*CreateBookingResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateBooking not implemented")
+}
+func (UnimplementedBookingServiceServer) CollectorAcceptBooking(context.Context, *CollectorAcceptBookingRequest) (*CollectorAcceptBookingResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CollectorAcceptBooking not implemented")
 }
 func (UnimplementedBookingServiceServer) ListMyBookings(context.Context, *ListMyBookingsRequest) (*ListBookingsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListMyBookings not implemented")
@@ -146,6 +168,24 @@ func _BookingService_CreateBooking_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(BookingServiceServer).CreateBooking(ctx, req.(*CreateBookingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _BookingService_CollectorAcceptBooking_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CollectorAcceptBookingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BookingServiceServer).CollectorAcceptBooking(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BookingService_CollectorAcceptBooking_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BookingServiceServer).CollectorAcceptBooking(ctx, req.(*CollectorAcceptBookingRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -214,6 +254,10 @@ var BookingService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateBooking",
 			Handler:    _BookingService_CreateBooking_Handler,
+		},
+		{
+			MethodName: "CollectorAcceptBooking",
+			Handler:    _BookingService_CollectorAcceptBooking_Handler,
 		},
 		{
 			MethodName: "ListMyBookings",

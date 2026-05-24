@@ -14,11 +14,13 @@ import (
 type BookingStatus string
 
 const (
-	BookingStatusPending    BookingStatus = "pending"
-	BookingStatusAccepted   BookingStatus = "accepted"
-	BookingStatusCollecting BookingStatus = "collecting"
-	BookingStatusCompleted  BookingStatus = "completed"
-	BookingStatusCancelled  BookingStatus = "cancelled"
+	BookingStatusPending            BookingStatus = "pending"
+	BookingStatusAccepted           BookingStatus = "accepted"
+	BookingStatusCollecting         BookingStatus = "collecting"
+	BookingStatusCompleted          BookingStatus = "completed"
+	BookingStatusCancelled          BookingStatus = "cancelled"
+	BookingStatusDeliveredToStation BookingStatus = "delivered_to_station"
+	BookingStatusReconciled         BookingStatus = "reconciled"
 )
 
 func (e *BookingStatus) Scan(src interface{}) error {
@@ -101,16 +103,39 @@ func (ns NullMaterialType) Value() (driver.Value, error) {
 }
 
 type Booking struct {
-	ID           pgtype.UUID        `json:"id"`
-	CustomerID   pgtype.UUID        `json:"customer_id"`
-	CollectorID  pgtype.UUID        `json:"collector_id"`
-	Status       BookingStatus      `json:"status"`
-	Address      string             `json:"address"`
-	Location     pgtype.Text        `json:"location"`
-	EstimatedKg  pgtype.Numeric     `json:"estimated_kg"`
-	MaterialType MaterialType       `json:"material_type"`
-	Note         *string            `json:"note"`
-	ScheduledAt  pgtype.Timestamptz `json:"scheduled_at"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+	ID              pgtype.UUID        `json:"id"`
+	CustomerID      pgtype.UUID        `json:"customer_id"`
+	CollectorID     pgtype.UUID        `json:"collector_id"`
+	Status          BookingStatus      `json:"status"`
+	Address         string             `json:"address"`
+	Location        pgtype.Text        `json:"location"`
+	EstimatedKg     pgtype.Numeric     `json:"estimated_kg"`
+	MaterialType    MaterialType       `json:"material_type"`
+	Note            *string            `json:"note"`
+	ScheduledAt     pgtype.Timestamptz `json:"scheduled_at"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	PinCode         *string            `json:"pin_code"`
+	PinExpiredAt    pgtype.Timestamptz `json:"pin_expired_at"`
+	ProofImageUrl   *string            `json:"proof_image_url"`
+	DriverWeight    pgtype.Numeric     `json:"driver_weight"`
+	CollectorWeight pgtype.Numeric     `json:"collector_weight"`
+	StationID       pgtype.UUID        `json:"station_id"`
+}
+
+type Station struct {
+	ID        pgtype.UUID        `json:"id"`
+	Name      string             `json:"name"`
+	Address   string             `json:"address"`
+	Location  interface{}        `json:"location"`
+	OwnerID   pgtype.UUID        `json:"owner_id"`
+	IsActive  bool               `json:"is_active"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type StationMember struct {
+	StationID pgtype.UUID        `json:"station_id"`
+	UserID    pgtype.UUID        `json:"user_id"`
+	JoinedAt  pgtype.Timestamptz `json:"joined_at"`
 }

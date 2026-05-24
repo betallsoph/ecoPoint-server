@@ -11,9 +11,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/reflection"
 
 	bookingv1 "github.com/ecopoint/ecopoint/shared/libs/go/ecopoint/booking/v1"
+	pointv1 "github.com/ecopoint/ecopoint/shared/libs/go/ecopoint/point/v1"
 
 	grpcserver "github.com/ecopoint/ecopoint/services/booking/internal/grpc"
 )
@@ -35,6 +37,17 @@ func main() {
 	}
 	defer pool.Close()
 
+	// Point Service client — dùng cho DeductFee 20 EP khi Vựa nhận đơn.
+	pointAddr := envOr("POINT_SERVICE_ADDR", "localhost:50053")
+	pointConn, err := grpc.NewClient(pointAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		logger.Error("point client dial failed", "err", err.Error(), "addr", pointAddr)
+		os.Exit(1)
+	}
+	defer pointConn.Close()
+	pointClient := pointv1.NewPointServiceClient(pointConn)
+	logger.Info("point service client ready", "addr", pointAddr)
+
 	port := envOr("GRPC_PORT", "50052")
 	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
@@ -43,7 +56,7 @@ func main() {
 	}
 
 	srv := grpc.NewServer()
-	bookingv1.RegisterBookingServiceServer(srv, grpcserver.NewBookingServer(pool, logger))
+	bookingv1.RegisterBookingServiceServer(srv, grpcserver.NewBookingServer(pool, pointClient, logger))
 	reflection.Register(srv)
 
 	go func() {

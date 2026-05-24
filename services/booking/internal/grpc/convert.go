@@ -54,19 +54,23 @@ func derefString(p *string) string {
 
 // ----- Status mapping -----
 var dbStatusToProto = map[bookingdb.BookingStatus]bookingv1.BookingStatus{
-	bookingdb.BookingStatusPending:    bookingv1.BookingStatus_BOOKING_STATUS_PENDING,
-	bookingdb.BookingStatusAccepted:   bookingv1.BookingStatus_BOOKING_STATUS_ACCEPTED,
-	bookingdb.BookingStatusCollecting: bookingv1.BookingStatus_BOOKING_STATUS_COLLECTING,
-	bookingdb.BookingStatusCompleted:  bookingv1.BookingStatus_BOOKING_STATUS_COMPLETED,
-	bookingdb.BookingStatusCancelled:  bookingv1.BookingStatus_BOOKING_STATUS_CANCELLED,
+	bookingdb.BookingStatusPending:             bookingv1.BookingStatus_BOOKING_STATUS_PENDING,
+	bookingdb.BookingStatusAccepted:            bookingv1.BookingStatus_BOOKING_STATUS_ACCEPTED,
+	bookingdb.BookingStatusCollecting:          bookingv1.BookingStatus_BOOKING_STATUS_COLLECTING,
+	bookingdb.BookingStatusCompleted:           bookingv1.BookingStatus_BOOKING_STATUS_COMPLETED,
+	bookingdb.BookingStatusCancelled:           bookingv1.BookingStatus_BOOKING_STATUS_CANCELLED,
+	bookingdb.BookingStatusDeliveredToStation:  bookingv1.BookingStatus_BOOKING_STATUS_DELIVERED_TO_STATION,
+	bookingdb.BookingStatusReconciled:          bookingv1.BookingStatus_BOOKING_STATUS_RECONCILED,
 }
 
 var protoStatusToDB = map[bookingv1.BookingStatus]bookingdb.BookingStatus{
-	bookingv1.BookingStatus_BOOKING_STATUS_PENDING:    bookingdb.BookingStatusPending,
-	bookingv1.BookingStatus_BOOKING_STATUS_ACCEPTED:   bookingdb.BookingStatusAccepted,
-	bookingv1.BookingStatus_BOOKING_STATUS_COLLECTING: bookingdb.BookingStatusCollecting,
-	bookingv1.BookingStatus_BOOKING_STATUS_COMPLETED:  bookingdb.BookingStatusCompleted,
-	bookingv1.BookingStatus_BOOKING_STATUS_CANCELLED:  bookingdb.BookingStatusCancelled,
+	bookingv1.BookingStatus_BOOKING_STATUS_PENDING:              bookingdb.BookingStatusPending,
+	bookingv1.BookingStatus_BOOKING_STATUS_ACCEPTED:             bookingdb.BookingStatusAccepted,
+	bookingv1.BookingStatus_BOOKING_STATUS_COLLECTING:           bookingdb.BookingStatusCollecting,
+	bookingv1.BookingStatus_BOOKING_STATUS_COMPLETED:            bookingdb.BookingStatusCompleted,
+	bookingv1.BookingStatus_BOOKING_STATUS_CANCELLED:            bookingdb.BookingStatusCancelled,
+	bookingv1.BookingStatus_BOOKING_STATUS_DELIVERED_TO_STATION: bookingdb.BookingStatusDeliveredToStation,
+	bookingv1.BookingStatus_BOOKING_STATUS_RECONCILED:           bookingdb.BookingStatusReconciled,
 }
 
 // ----- Material mapping -----
@@ -110,6 +114,10 @@ type bookingFields struct {
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
 	DistanceM    float64 // 0 nếu không phải nearest
+	// V1.3 fields
+	StationID    pgtype.UUID
+	PinCode      *string
+	PinExpiredAt pgtype.Timestamptz
 }
 
 func toProtoBooking(b bookingFields) *bookingv1.Booking {
@@ -128,5 +136,8 @@ func toProtoBooking(b bookingFields) *bookingv1.Booking {
 		CreatedAt:    pgTimestampPB(b.CreatedAt),
 		UpdatedAt:    pgTimestampPB(b.UpdatedAt),
 		DistanceM:    b.DistanceM,
+		StationId:    fromPgUUID(b.StationID),
+		PinCode:      derefString(b.PinCode),
+		PinExpiredAt: pgTimestampPB(b.PinExpiredAt),
 	}
 }

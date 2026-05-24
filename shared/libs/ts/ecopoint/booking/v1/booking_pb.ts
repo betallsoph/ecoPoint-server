@@ -39,6 +39,18 @@ export enum BookingStatus {
    * @generated from enum value: BOOKING_STATUS_CANCELLED = 5;
    */
   CANCELLED = 5,
+
+  /**
+   * V1.3 — Vựa arbitration states.
+   *
+   * @generated from enum value: BOOKING_STATUS_DELIVERED_TO_STATION = 6;
+   */
+  DELIVERED_TO_STATION = 6,
+
+  /**
+   * @generated from enum value: BOOKING_STATUS_RECONCILED = 7;
+   */
+  RECONCILED = 7,
 }
 // Retrieve enum metadata with: proto3.getEnumType(BookingStatus)
 proto3.util.setEnumType(BookingStatus, "ecopoint.booking.v1.BookingStatus", [
@@ -48,6 +60,8 @@ proto3.util.setEnumType(BookingStatus, "ecopoint.booking.v1.BookingStatus", [
   { no: 3, name: "BOOKING_STATUS_COLLECTING" },
   { no: 4, name: "BOOKING_STATUS_COMPLETED" },
   { no: 5, name: "BOOKING_STATUS_CANCELLED" },
+  { no: 6, name: "BOOKING_STATUS_DELIVERED_TO_STATION" },
+  { no: 7, name: "BOOKING_STATUS_RECONCILED" },
 ]);
 
 /**
@@ -158,11 +172,30 @@ export class Booking extends Message<Booking> {
   updatedAt?: Timestamp;
 
   /**
-   * Chỉ set ở ListPendingNearby
-   *
    * @generated from field: double distance_m = 14;
    */
   distanceM = 0;
+
+  /**
+   * V1.3 fields:
+   *
+   * set khi >= ACCEPTED
+   *
+   * @generated from field: string station_id = 15;
+   */
+  stationId = "";
+
+  /**
+   * chỉ trả về cho customer khi CreateBooking
+   *
+   * @generated from field: string pin_code = 16;
+   */
+  pinCode = "";
+
+  /**
+   * @generated from field: google.protobuf.Timestamp pin_expired_at = 17;
+   */
+  pinExpiredAt?: Timestamp;
 
   constructor(data?: PartialMessage<Booking>) {
     super();
@@ -186,6 +219,9 @@ export class Booking extends Message<Booking> {
     { no: 12, name: "created_at", kind: "message", T: Timestamp },
     { no: 13, name: "updated_at", kind: "message", T: Timestamp },
     { no: 14, name: "distance_m", kind: "scalar", T: 1 /* ScalarType.DOUBLE */ },
+    { no: 15, name: "station_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 16, name: "pin_code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 17, name: "pin_expired_at", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Booking {
@@ -245,8 +281,6 @@ export class CreateBookingRequest extends Message<CreateBookingRequest> {
   materialType = MaterialType.UNSPECIFIED;
 
   /**
-   * Optional — bỏ trống = đặt ngay.
-   *
    * @generated from field: google.protobuf.Timestamp scheduled_at = 8;
    */
   scheduledAt?: Timestamp;
@@ -324,6 +358,94 @@ export class CreateBookingResponse extends Message<CreateBookingResponse> {
 }
 
 /**
+ * @generated from message ecopoint.booking.v1.CollectorAcceptBookingRequest
+ */
+export class CollectorAcceptBookingRequest extends Message<CollectorAcceptBookingRequest> {
+  /**
+   * @generated from field: string booking_id = 1;
+   */
+  bookingId = "";
+
+  /**
+   * @generated from field: string station_id = 2;
+   */
+  stationId = "";
+
+  constructor(data?: PartialMessage<CollectorAcceptBookingRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "ecopoint.booking.v1.CollectorAcceptBookingRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "booking_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "station_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CollectorAcceptBookingRequest {
+    return new CollectorAcceptBookingRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CollectorAcceptBookingRequest {
+    return new CollectorAcceptBookingRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CollectorAcceptBookingRequest {
+    return new CollectorAcceptBookingRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CollectorAcceptBookingRequest | PlainMessage<CollectorAcceptBookingRequest> | undefined, b: CollectorAcceptBookingRequest | PlainMessage<CollectorAcceptBookingRequest> | undefined): boolean {
+    return proto3.util.equals(CollectorAcceptBookingRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message ecopoint.booking.v1.CollectorAcceptBookingResponse
+ */
+export class CollectorAcceptBookingResponse extends Message<CollectorAcceptBookingResponse> {
+  /**
+   * @generated from field: ecopoint.booking.v1.Booking booking = 1;
+   */
+  booking?: Booking;
+
+  /**
+   * tx_id của DeductFee 20 EP — audit trail.
+   *
+   * @generated from field: string point_tx_id = 2;
+   */
+  pointTxId = "";
+
+  constructor(data?: PartialMessage<CollectorAcceptBookingResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "ecopoint.booking.v1.CollectorAcceptBookingResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "booking", kind: "message", T: Booking },
+    { no: 2, name: "point_tx_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CollectorAcceptBookingResponse {
+    return new CollectorAcceptBookingResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CollectorAcceptBookingResponse {
+    return new CollectorAcceptBookingResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CollectorAcceptBookingResponse {
+    return new CollectorAcceptBookingResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CollectorAcceptBookingResponse | PlainMessage<CollectorAcceptBookingResponse> | undefined, b: CollectorAcceptBookingResponse | PlainMessage<CollectorAcceptBookingResponse> | undefined): boolean {
+    return proto3.util.equals(CollectorAcceptBookingResponse, a, b);
+  }
+}
+
+/**
  * @generated from message ecopoint.booking.v1.ListMyBookingsRequest
  */
 export class ListMyBookingsRequest extends Message<ListMyBookingsRequest> {
@@ -371,8 +493,6 @@ export class ListMyBookingsRequest extends Message<ListMyBookingsRequest> {
  */
 export class ListBookingsRequest extends Message<ListBookingsRequest> {
   /**
-   * BOOKING_STATUS_UNSPECIFIED = không filter
-   *
    * @generated from field: ecopoint.booking.v1.BookingStatus status = 1;
    */
   status = BookingStatus.UNSPECIFIED;
@@ -426,8 +546,6 @@ export class ListPendingNearbyRequest extends Message<ListPendingNearbyRequest> 
   latitude = 0;
 
   /**
-   * Mặc định 5 nếu = 0
-   *
    * @generated from field: int32 limit = 3;
    */
   limit = 0;

@@ -24,6 +24,8 @@ const bookingStatusToString: Record<PbBookingStatus, string> = {
   [PbBookingStatus.COLLECTING]: "COLLECTING",
   [PbBookingStatus.COMPLETED]: "COMPLETED",
   [PbBookingStatus.CANCELLED]: "CANCELLED",
+  [PbBookingStatus.DELIVERED_TO_STATION]: "DELIVERED_TO_STATION",
+  [PbBookingStatus.RECONCILED]: "RECONCILED",
 };
 
 const stringToBookingStatus: Record<string, PbBookingStatus> = {
@@ -32,6 +34,8 @@ const stringToBookingStatus: Record<string, PbBookingStatus> = {
   COLLECTING: PbBookingStatus.COLLECTING,
   COMPLETED: PbBookingStatus.COMPLETED,
   CANCELLED: PbBookingStatus.CANCELLED,
+  DELIVERED_TO_STATION: PbBookingStatus.DELIVERED_TO_STATION,
+  RECONCILED: PbBookingStatus.RECONCILED,
 };
 
 const materialToString: Record<PbMaterialType, string> = {

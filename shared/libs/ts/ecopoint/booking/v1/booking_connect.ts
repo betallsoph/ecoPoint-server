@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateBookingRequest, CreateBookingResponse, ListBookingsRequest, ListBookingsResponse, ListMyBookingsRequest, ListPendingNearbyRequest } from "./booking_pb.js";
+import { CollectorAcceptBookingRequest, CollectorAcceptBookingResponse, CreateBookingRequest, CreateBookingResponse, ListBookingsRequest, ListBookingsResponse, ListMyBookingsRequest, ListPendingNearbyRequest } from "./booking_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -13,12 +13,26 @@ export const BookingService = {
   typeName: "ecopoint.booking.v1.BookingService",
   methods: {
     /**
+     * User tạo đơn — server tự sinh PIN 4 số (TTL 10 phút) trả về cho mobile.
+     *
      * @generated from rpc ecopoint.booking.v1.BookingService.CreateBooking
      */
     createBooking: {
       name: "CreateBooking",
       I: CreateBookingRequest,
       O: CreateBookingResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Vựa (Station) nhận đơn → service tự gọi Point.DeductFee 20 EP.
+     * Fail (thiếu số dư) → trả lỗi, đơn vẫn PENDING.
+     *
+     * @generated from rpc ecopoint.booking.v1.BookingService.CollectorAcceptBooking
+     */
+    collectorAcceptBooking: {
+      name: "CollectorAcceptBooking",
+      I: CollectorAcceptBookingRequest,
+      O: CollectorAcceptBookingResponse,
       kind: MethodKind.Unary,
     },
     /**

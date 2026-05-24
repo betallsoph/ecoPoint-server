@@ -6,7 +6,13 @@ import "ecopoint/common/v1/common.proto";
 import "google/protobuf/timestamp.proto";
 
 service BookingService {
+  // User tạo đơn — server tự sinh PIN 4 số (TTL 10 phút) trả về cho mobile.
   rpc CreateBooking(CreateBookingRequest) returns (CreateBookingResponse);
+
+  // Vựa (Station) nhận đơn → service tự gọi Point.DeductFee 20 EP.
+  // Fail (thiếu số dư) → trả lỗi, đơn vẫn PENDING.
+  rpc CollectorAcceptBooking(CollectorAcceptBookingRequest) returns (CollectorAcceptBookingResponse);
+
   rpc ListMyBookings(ListMyBookingsRequest) returns (ListBookingsResponse);
   rpc ListPendingNearby(ListPendingNearbyRequest) returns (ListBookingsResponse);
   rpc ListBookings(ListBookingsRequest) returns (ListBookingsResponse);
@@ -19,6 +25,9 @@ enum BookingStatus {
   BOOKING_STATUS_COLLECTING = 3;
   BOOKING_STATUS_COMPLETED = 4;
   BOOKING_STATUS_CANCELLED = 5;
+  // V1.3 — Vựa arbitration states.
+  BOOKING_STATUS_DELIVERED_TO_STATION = 6;
+  BOOKING_STATUS_RECONCILED = 7;
 }
 
 enum MaterialType {
@@ -43,8 +52,11 @@ message Booking {
   google.protobuf.Timestamp scheduled_at = 11;
   google.protobuf.Timestamp created_at = 12;
   google.protobuf.Timestamp updated_at = 13;
-  // Chỉ set ở ListPendingNearby
   double distance_m = 14;
+  // V1.3 fields:
+  string station_id = 15; // set khi >= ACCEPTED
+  string pin_code = 16; // chỉ trả về cho customer khi CreateBooking
+  google.protobuf.Timestamp pin_expired_at = 17;
 }
 
 message CreateBookingRequest {
@@ -55,12 +67,22 @@ message CreateBookingRequest {
   ecopoint.common.v1.Decimal estimated_kg = 5;
   string note = 6;
   MaterialType material_type = 7;
-  // Optional — bỏ trống = đặt ngay.
   google.protobuf.Timestamp scheduled_at = 8;
 }
 
 message CreateBookingResponse {
   Booking booking = 1;
+}
+
+message CollectorAcceptBookingRequest {
+  string booking_id = 1;
+  string station_id = 2;
+}
+
+message CollectorAcceptBookingResponse {
+  Booking booking = 1;
+  // tx_id của DeductFee 20 EP — audit trail.
+  string point_tx_id = 2;
 }
 
 message ListMyBookingsRequest {
@@ -69,14 +91,13 @@ message ListMyBookingsRequest {
 }
 
 message ListBookingsRequest {
-  BookingStatus status = 1; // BOOKING_STATUS_UNSPECIFIED = không filter
+  BookingStatus status = 1;
   int32 limit = 2;
 }
 
 message ListPendingNearbyRequest {
   double longitude = 1;
   double latitude = 2;
-  // Mặc định 5 nếu = 0
   int32 limit = 3;
 }
 

@@ -1,7 +1,10 @@
 version: "2"
 sql:
   - engine: postgresql
-    schema: db/migrations
+    # Explicit ordered list — không include *.down.sql.
+    schema:
+      - "db/migrations/001_schema.sql"
+      - "db/migrations/002_ecopoint_v1_3_upgrade.up.sql"
     queries: db/queries
     gen:
       go:
